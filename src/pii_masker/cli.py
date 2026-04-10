@@ -67,11 +67,17 @@ def cmd_mask(args: argparse.Namespace) -> int:
     if args.mapping:
         map_path = Path(args.mapping)
     else:
-        map_path = src.with_stem(src.stem + "_mapping").with_suffix(".json")
+        map_path = src.with_stem(src.stem + "_mapping").with_suffix(".tsv")
 
     print(f"[mask] {src.name} → {out_path.name}")
 
     masker = Masker()
+
+    # 既存マッピングを事前ロード（セッション間でラベルを一貫させる）
+    if map_path.exists():
+        masker.load_mapping(map_path)
+        print(f"[mask] マッピング引き継ぎ: {map_path}")
+
     output, _, _ = handler(src, masker)
 
     if isinstance(output, bytes):
@@ -107,9 +113,9 @@ def cmd_unmask(args: argparse.Namespace) -> int:
     if args.mapping:
         map_path = Path(args.mapping)
     else:
-        # "_masked" を除いた名前の "_mapping.json" を自動検索
+        # "_masked" を除いた名前の "_mapping.tsv" を自動検索
         stem = src.stem.removesuffix("_masked")
-        map_path = src.with_stem(stem + "_mapping").with_suffix(".json")
+        map_path = src.with_stem(stem + "_mapping").with_suffix(".tsv")
 
     if not map_path.exists():
         print(f"[error] マッピングファイルが見つかりません: {map_path}", file=sys.stderr)
@@ -144,17 +150,20 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用例:
-  # マスキング（出力: 議事録_masked.docx + 議事録_mapping.json）
+  # マスキング（出力: 議事録_masked.docx + 議事録_mapping.tsv）
   mask 議事録.docx
 
+  # マスキング（既存のマッピングに追記して一貫性を維持）
+  mask 提案書.docx --mapping 共通_mapping.tsv
+
   # マスキング（出力先を指定）
-  mask 議事録.docx --output 送付用.docx --mapping .secret/mapping.json
+  mask 議事録.docx --output 送付用.docx --mapping .secret/mapping.tsv
 
   # 復元
   unmask 議事録_masked.txt
 
   # 復元（マッピングファイルを明示指定）
-  unmask 議事録_masked.txt --mapping .secret/mapping.json --output 復元済み.txt
+  unmask 議事録_masked.txt --mapping .secret/mapping.tsv --output 復元済み.txt
         """,
     )
 
@@ -165,7 +174,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p_mask = sub.add_parser(
         "mask",
         help="ファイルをマスキングする",
-        description="ファイル内の機密情報をトークンに変換します。",
+        description="ファイル内の機密情報をトークンに変換します。"
+                    "既存のマッピングファイルがあれば自動的に読み込み、ラベルを引き継ぎます。",
     )
     p_mask.add_argument("file", help=f"入力ファイル（対応形式: {SUPPORTED_EXTS}）")
     p_mask.add_argument(
@@ -176,7 +186,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p_mask.add_argument(
         "-m", "--mapping",
         metavar="FILE",
-        help="マッピングJSONの保存先（省略時: <元ファイル名>_mapping.json）",
+        help="マッピングTSVのパス（省略時: <元ファイル名>_mapping.tsv）。"
+             "既存ファイルがあれば読み込んでから追記保存する。",
     )
     p_mask.set_defaults(func=cmd_mask)
 
@@ -195,7 +206,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_unmask.add_argument(
         "-m", "--mapping",
         metavar="FILE",
-        help="マッピングJSONのパス（省略時: 自動検索）",
+        help="マッピングTSVのパス（省略時: 自動検索）",
     )
     p_unmask.set_defaults(func=cmd_unmask)
 

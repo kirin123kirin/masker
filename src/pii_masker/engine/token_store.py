@@ -1,35 +1,53 @@
 """
 トークン発番・一意性管理
+
+2層構造:
+  第1層: 元テキスト → MD5ハッシュ（決定論的・セッション不変）
+  第2層: MD5ハッシュ → ラベル（蓄積テーブルへの初登場順）
+
+同じ元テキストは常に同じハッシュになるため、
+事前にマッピングをロードしておけばセッションをまたいで
+同じラベルが割り当てられる。
 """
 
 import string
+import hashlib
 
 
 class TokenStore:
     def __init__(self):
-        self._fwd: dict[str, dict[str, str]] = {}
-        self._counters: dict[str, int] = {}
+        self._text_to_hash: dict[str, dict[str, str]] = {}   # cat → {text → hash}
+        self._hash_to_label: dict[str, dict[str, str]] = {}  # cat → {hash → label}
 
     def reset(self):
-        self._fwd.clear()
-        self._counters.clear()
+        self._text_to_hash.clear()
+        self._hash_to_label.clear()
 
     def get_or_create(self, category: str, original: str) -> str:
-        cat_map = self._fwd.setdefault(category, {})
-        if original in cat_map:
-            return cat_map[original]
-        idx = self._counters.get(category, 0)
-        token_id = self._index_to_label(idx)
-        self._counters[category] = idx + 1
-        cat_map[original] = token_id
-        return token_id
+        # 第1層: テキスト → MD5ハッシュ（決定論的）
+        t2h = self._text_to_hash.setdefault(category, {})
+        if original not in t2h:
+            t2h[original] = hashlib.md5(original.encode()).hexdigest()[:8].upper()
+        h = t2h[original]
 
-    def get_fwd(self) -> dict[str, dict[str, str]]:
-        return self._fwd
+        # 第2層: ハッシュ → ラベル（蓄積テーブルへの初登場順）
+        h2l = self._hash_to_label.setdefault(category, {})
+        if h not in h2l:
+            h2l[h] = self._index_to_label(len(h2l))
+        return h2l[h]
 
-    def load_fwd(self, fwd: dict[str, dict[str, str]]):
-        self._fwd = fwd
-        self._counters = {cat: len(pairs) for cat, pairs in fwd.items()}
+    def rows(self):
+        """TSV書き出し用イテレータ: (category, original, hash, label)"""
+        for cat, t2h in self._text_to_hash.items():
+            h2l = self._hash_to_label.get(cat, {})
+            for orig, h in t2h.items():
+                yield cat, orig, h, h2l.get(h, "")
+
+    def load_rows(self, rows):
+        """TSV読み込み: [(category, original, hash, label), ...]"""
+        for cat, orig, h, label in rows:
+            self._text_to_hash.setdefault(cat, {})[orig] = h
+            self._hash_to_label.setdefault(cat, {})[h] = label
 
     @staticmethod
     def _index_to_label(n: int) -> str:
