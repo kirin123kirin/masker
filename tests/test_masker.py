@@ -377,8 +377,8 @@ class TestCLI:
         import argparse
         from pii_masker.cli import cmd_mask
 
-        src = tmp_path / "file.xlsx"
-        src.write_text("test")
+        src = tmp_path / "file.csv"
+        src.write_text("name,phone\n田中太郎,03-1234-5678")
 
         args = argparse.Namespace(
             file=str(src),
