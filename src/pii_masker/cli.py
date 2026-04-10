@@ -21,6 +21,7 @@ def _get_handler(ext: str):
     from pii_masker.formats.handler_docx import process_docx
     from pii_masker.formats.handler_pptx import process_pptx
     from pii_masker.formats.handler_pdf  import process_pdf
+    from pii_masker.formats.handler_xlsx import process_xlsx
 
     HANDLERS: dict[str, tuple] = {
         ".txt":  (process_txt,  ".txt"),
@@ -30,11 +31,12 @@ def _get_handler(ext: str):
         ".docx": (process_docx, ".docx"),
         ".pptx": (process_pptx, ".pptx"),
         ".pdf":  (process_pdf,  ".md"),
+        ".xlsx": (process_xlsx, ".xlsx"),
     }
     return HANDLERS.get(ext.lower())
 
 
-SUPPORTED_EXTS = ".txt .html .htm .svg .docx .pptx .pdf"
+SUPPORTED_EXTS = ".txt .html .htm .svg .docx .pptx .pdf .xlsx"
 
 
 # ━━ mask コマンド ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

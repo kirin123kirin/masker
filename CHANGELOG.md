@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.0] - 2025-04-10
 
 ### Added
+- `.xlsx` 対応（文字列セルのみマスク・数値・数式・書式保持）
 - PDFファイル対応（pdfplumber によるテキスト抽出 → Markdown出力）
 - `mask` / `unmask` CLI エントリポイント
 - GiNZA (spaCy) による人名・組織名の高精度NLP検出（オプション）
