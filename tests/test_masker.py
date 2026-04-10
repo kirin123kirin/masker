@@ -118,7 +118,7 @@ class TestAgeMasking:
     def test_age_irreversible(self, masker, tmp_path):
         """年齢変換は非可逆"""
         masked = masker.mask("42歳")
-        map_path = tmp_path / "mapping.json"
+        map_path = tmp_path / "mapping.tsv"
         masker.save_mapping(map_path)
         restored = masker.restore(masked, map_path)
         assert "42歳" not in restored   # 復元不可
@@ -243,7 +243,7 @@ class TestRestore:
     def test_restore_basic(self, fresh_masker, tmp_path):
         original = "田中太郎部長、03-1234-5678、tanaka@example.co.jp"
         masked = fresh_masker.mask(original)
-        map_path = tmp_path / "mapping.json"
+        map_path = tmp_path / "mapping.tsv"
         fresh_masker.save_mapping(map_path)
         restored = fresh_masker.restore(masked, map_path)
         assert restored == original
@@ -251,7 +251,7 @@ class TestRestore:
     def test_restore_date(self, fresh_masker, tmp_path):
         original = "2025年4月1日の会議"
         masked = fresh_masker.mask(original)
-        map_path = tmp_path / "mapping.json"
+        map_path = tmp_path / "mapping.tsv"
         fresh_masker.save_mapping(map_path)
         restored = fresh_masker.restore(masked, map_path)
         assert restored == original
@@ -259,7 +259,7 @@ class TestRestore:
     def test_restore_address(self, fresh_masker, tmp_path):
         original = "東京都千代田区丸の内1-1-1"
         masked = fresh_masker.mask(original)
-        map_path = tmp_path / "mapping.json"
+        map_path = tmp_path / "mapping.tsv"
         fresh_masker.save_mapping(map_path)
         restored = fresh_masker.restore(masked, map_path)
         assert restored == original
@@ -267,10 +267,58 @@ class TestRestore:
     def test_restore_postal(self, fresh_masker, tmp_path):
         original = "〒231-0001 神奈川県横浜市中区新港1-1"
         masked = fresh_masker.mask(original)
-        map_path = tmp_path / "mapping.json"
+        map_path = tmp_path / "mapping.tsv"
         fresh_masker.save_mapping(map_path)
         restored = fresh_masker.restore(masked, map_path)
         assert restored == original
+
+
+# ━━ セッション間一貫性 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class TestCrossSessionConsistency:
+
+    def test_same_label_across_sessions(self, tmp_path):
+        """マッピングを引き継ぐと異なるセッションでも同じラベルになる"""
+        map_path = tmp_path / "shared_mapping.tsv"
+
+        # セッション1: 田中が先に登場 → 人物A
+        m1 = Masker()
+        r1 = m1.mask("田中太郎部長と鈴木花子さん")
+        m1.save_mapping(map_path)
+        assert "【人物A】" in r1  # 田中 → A
+
+        # セッション2: 鈴木が先に登場するが、事前ロードで田中=A・鈴木=B を引き継ぐ
+        m2 = Masker()
+        m2.load_mapping(map_path)
+        r2 = m2.mask("鈴木花子さんと田中太郎部長")
+        assert "【人物A】" in r2  # 田中 → 依然A（順序に関わらず）
+        assert "【人物B】" in r2  # 鈴木 → 依然B
+
+    def test_backup_created_on_save(self, tmp_path):
+        """2回保存すると .bak が作られる"""
+        map_path = tmp_path / "mapping.tsv"
+
+        m1 = Masker()
+        m1.mask("03-1234-5678")
+        m1.save_mapping(map_path)
+        assert not map_path.with_name(map_path.name + ".bak").exists()
+
+        m2 = Masker()
+        m2.mask("090-9876-5432")
+        m2.save_mapping(map_path)
+        assert map_path.with_name(map_path.name + ".bak").exists()  # バックアップ生成
+
+    def test_tsv_format(self, tmp_path):
+        """保存されたTSVが4列（カテゴリ/元テキスト/MD5/ラベル）になっている"""
+        map_path = tmp_path / "mapping.tsv"
+        m = Masker()
+        m.mask("03-1234-5678")
+        m.save_mapping(map_path)
+
+        lines = [l for l in map_path.read_text(encoding="utf-8").splitlines()
+                 if l and not l.startswith("#")]
+        assert len(lines) >= 1
+        assert all(len(l.split("\t")) == 4 for l in lines)
 
 
 # ━━ ファイルハンドラー ━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -325,12 +373,12 @@ class TestCLI:
         args = argparse.Namespace(
             file=str(src),
             output=str(tmp_path / "output.txt"),
-            mapping=str(tmp_path / "mapping.json"),
+            mapping=str(tmp_path / "mapping.tsv"),
         )
         ret = cmd_mask(args)
         assert ret == 0
         assert (tmp_path / "output.txt").exists()
-        assert (tmp_path / "mapping.json").exists()
+        assert (tmp_path / "mapping.tsv").exists()
 
     def test_unmask_command(self, tmp_path):
         import argparse
@@ -341,7 +389,7 @@ class TestCLI:
         src.write_text(original, encoding="utf-8")
 
         masked_path = tmp_path / "input_masked.txt"
-        map_path = tmp_path / "input_mapping.json"
+        map_path = tmp_path / "input_mapping.tsv"
 
         # まずマスク
         cmd_mask(argparse.Namespace(

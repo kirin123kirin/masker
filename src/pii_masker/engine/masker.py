@@ -7,10 +7,14 @@
   3. その他    ← rules.py (正規表現)
 
 役職・敬称は人名の後ろに残す。
+
+マッピングファイルはTSV形式（保存時に1世代バックアップを作成）:
+  #カテゴリ\t元テキスト\tMD5\tラベル
+  人物\t田中太郎\t3A7F2C12\tA
 """
 
 import re
-import json
+import shutil
 from pathlib import Path
 from pii_masker.engine.rules import RULES, PREFECTURES
 from pii_masker.engine.date_detector import find_dates
@@ -91,27 +95,43 @@ class Masker:
         token_id = self._store.get_or_create(category, original)
         return raw.replace("{token}", token_id)
 
+    # ── TSVマッピング ──────────────────────────────────
+
     def save_mapping(self, path: Path):
-        fwd = self._store.get_fwd()
-        restore_map: dict[str, str] = {
-            f"【{cat}{tid}】": orig
-            for cat, pairs in fwd.items()
-            for orig, tid in pairs.items()
-        }
-        path.write_text(
-            json.dumps({"mapping": fwd, "restore": restore_map},
-                       ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        """マッピングをTSV形式で保存。既存ファイルは .bak に退避（1世代）。"""
+        if path.exists():
+            shutil.copy2(path, path.with_name(path.name + ".bak"))
+
+        lines = ["#カテゴリ\t元テキスト\tMD5\tラベル"]
+        for cat, orig, h, label in self._store.rows():
+            orig_esc = orig.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+            lines.append(f"{cat}\t{orig_esc}\t{h}\t{label}")
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def load_mapping(self, path: Path):
-        data = json.loads(path.read_text(encoding="utf-8"))
-        self._store.load_fwd(data.get("mapping", {}))
+        """TSVマッピングを読み込み、既存の蓄積テーブルにマージする。"""
+        rows = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split("\t")
+            if len(parts) == 4:
+                cat, orig_esc, h, label = parts
+                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\\\", "\\")
+                rows.append((cat, orig, h, label))
+        self._store.load_rows(rows)
 
     def restore(self, text: str, mapping_path: Path) -> str:
         """マスク済みテキストを原文に復元（年齢変換は非可逆）"""
-        data = json.loads(mapping_path.read_text(encoding="utf-8"))
-        restore_map: dict[str, str] = data.get("restore", {})
+        restore_map: dict[str, str] = {}
+        for line in mapping_path.read_text(encoding="utf-8").splitlines():
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split("\t")
+            if len(parts) == 4:
+                cat, orig_esc, h, label = parts
+                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\\\", "\\")
+                restore_map[f"【{cat}{label}】"] = orig
 
         # 住所トークンの特殊復元（prefix・suffix の二重化防止）
         addr_pat = re.compile(
