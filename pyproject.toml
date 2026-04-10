@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pii-masker"
+version = "1.3.0"
+description = "個人情報・機密情報を可逆・一意なトークンにマスキングするオフラインライブラリ"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Your Name", email = "you@example.com" },
+]
+keywords = [
+    "pii", "masking", "anonymization", "privacy", "nlp",
+    "個人情報", "マスキング", "匿名化",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: Japanese",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Text Processing :: Linguistic",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.12"
+
+dependencies = [
+    "python-dateutil>=2.9.0",
+    "python-docx>=1.1.0",
+    "python-pptx>=0.6.23",
+    "pdfplumber>=0.10.0",
+]
+
+[project.optional-dependencies]
+# 人名・組織名の高精度NLP検出
+nlp = [
+    "ginza>=5.2.0",
+    "ja-ginza>=5.2.0",
+]
+dev = [
+    "build>=1.0",
+    "twine>=5.0",
+    "pytest>=8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourname/pii-masker"
+Repository = "https://github.com/yourname/pii-masker"
+"Bug Tracker" = "https://github.com/yourname/pii-masker/issues"
+
+[project.scripts]
+mask   = "pii_masker.cli:main"
+unmask = "pii_masker.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pii_masker = [
+    "dict/*.txt",
+    "py.typed",
+]

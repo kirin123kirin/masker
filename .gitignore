@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg
+*.egg-info/
+.eggs/
+
+# ビルド成果物
+dist/
+build/
+*.whl
+
+# 仮想環境
+.venv/
+venv/
+env/
+
+# テスト・カバレッジ
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# マッピングファイル（機密情報を含む可能性）
+*_mapping.json
+
+# OS
+.DS_Store
+Thumbs.db

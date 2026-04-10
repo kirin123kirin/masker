@@ -1,0 +1,15 @@
+# sdist に含めるファイル
+include LICENSE
+include README.md
+include pyproject.toml
+
+# カスタム辞書テンプレート
+recursive-include src/pii_masker/dict *.txt
+
+# 除外
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude .DS_Store
+exclude test_*.py
+exclude *_test.py
