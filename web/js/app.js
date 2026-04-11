@@ -15,7 +15,7 @@ import { processXlsx } from './handlers/xlsx.js';
 
 class NerProxy {
     constructor() {
-        this._worker = new Worker('./js/ner_worker.js');
+        this._worker = new Worker('./js/ner_worker.js', { type: 'module' });
         this._pending = new Map(); // id -> { resolve, reject }
         this._nextId = 0;
         this._ready = false;
