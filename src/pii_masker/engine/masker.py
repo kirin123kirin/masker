@@ -49,7 +49,7 @@ class Masker:
         replacements:  list[tuple[int, int, str]] = []
 
         def _register(start: int, end: int, rep: str):
-            if any(s <= start < e or s < end <= e for s, e in masked_ranges):
+            if any(s < end and start < e for s, e in masked_ranges):
                 return
             replacements.append((start, end, rep))
             masked_ranges.append((start, end))
@@ -104,7 +104,7 @@ class Masker:
 
         lines = ["#カテゴリ\t元テキスト\tMD5\tラベル"]
         for cat, orig, h, label in self._store.rows():
-            orig_esc = orig.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+            orig_esc = orig.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r")
             lines.append(f"{cat}\t{orig_esc}\t{h}\t{label}")
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -117,7 +117,7 @@ class Masker:
             parts = line.split("\t")
             if len(parts) == 4:
                 cat, orig_esc, h, label = parts
-                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\\\", "\\")
+                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\r", "\r").replace("\\\\", "\\")
                 rows.append((cat, orig, h, label))
         self._store.load_rows(rows)
 
@@ -130,7 +130,7 @@ class Masker:
             parts = line.split("\t")
             if len(parts) == 4:
                 cat, orig_esc, h, label = parts
-                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\\\", "\\")
+                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\r", "\r").replace("\\\\", "\\")
                 restore_map[f"【{cat}{label}】"] = orig
 
         # 住所トークンの特殊復元（prefix・suffix の二重化防止）

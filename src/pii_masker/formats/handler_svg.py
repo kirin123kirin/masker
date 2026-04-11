@@ -56,7 +56,9 @@ def process_svg(src: Path, masker: Masker) -> tuple[str, str, str]:
     # オリジナルの XML 宣言を先頭に付与
     xml_decl = ""
     if original.startswith("<?xml"):
-        xml_decl = original[:original.index("?>") + 2] + "\n"
+        decl_end = original.find("?>")
+        if decl_end != -1:
+            xml_decl = original[:decl_end + 2] + "\n"
     output = xml_decl + masked_xml
 
     return output, "\n".join(original_texts), "\n".join(masked_texts)
