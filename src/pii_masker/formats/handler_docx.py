@@ -5,6 +5,7 @@ Wordファイル (.docx) ハンドラー
 """
 
 import io
+import warnings
 from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
@@ -112,8 +113,11 @@ def process_docx(src: Path, masker: Masker) -> tuple[bytes, str, str]:
                     if o:
                         all_original.append(o)
                         all_masked.append(m)
-                except Exception:
-                    pass
+                except Exception as e:
+                    warnings.warn(
+                        f"テキストボックス要素のマスク処理をスキップしました: {e}",
+                        stacklevel=2,
+                    )
 
     # バイト列として出力
     buf = io.BytesIO()

@@ -12,21 +12,32 @@
 """
 
 import re
+import warnings
 from pathlib import Path
 
 # ━━ GiNZA ロード試行 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 _nlp = None
+_load_attempted = False  # ロード試行済みフラグ（再試行コストを防ぐ）
+
 
 def _try_load_ginza() -> bool:
-    global _nlp
-    if _nlp is not None:
-        return True
+    global _nlp, _load_attempted
+    if _load_attempted:
+        return _nlp is not None
+    _load_attempted = True
     try:
         import spacy
         _nlp = spacy.load("ja_ginza")
         return True
-    except Exception:
+    except ImportError:
+        # spaCy / ja_ginza 未インストール → 正常なフォールバック
+        return False
+    except Exception as e:
+        warnings.warn(
+            f"GiNZA のロードに失敗しました（ヒューリスティックモードで継続）: {e}",
+            stacklevel=2,
+        )
         return False
 
 # ━━ 役職・敬称定義 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
