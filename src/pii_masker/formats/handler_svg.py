@@ -14,14 +14,15 @@ from pii_masker.engine.masker import Masker
 # テキストコンテンツを持つ要素タグ（名前空間なし・あり両対応）
 _TEXT_TAGS = {"text", "tspan", "title", "desc", "textPath"}
 
+# SVG 名前空間をモジュールロード時に登録（出力 XML の xmlns 属性を簡潔に保つ）
+ET.register_namespace("", "http://www.w3.org/2000/svg")
+ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+
 
 def process_svg(src: Path, masker: Masker) -> tuple[str, str, str]:
     raw_bytes = src.read_bytes()
 
     # ElementTree がバイト列から XML 宣言のエンコーディングを自動検出する
-    ET.register_namespace("", "http://www.w3.org/2000/svg")
-    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
-
     try:
         root = ET.fromstring(raw_bytes)
     except ET.ParseError as e:
