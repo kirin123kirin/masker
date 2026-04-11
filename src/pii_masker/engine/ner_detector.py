@@ -166,7 +166,7 @@ def _find_by_heuristic(text: str) -> list[tuple[int, int, str, str]]:
         if re.fullmatch(r"[\d\s\W]+", original):
             return False
         # 重複区間チェック
-        if any(s <= start < e or s < end <= e for s, e in used):
+        if any(s < end and start < e for s, e in used):
             return False
         results.append((start, end, original, cat))
         used.append((start, end))

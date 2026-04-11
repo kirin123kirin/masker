@@ -4,6 +4,7 @@ Wordファイル (.docx) ハンドラー
 書式（太字・色・フォント等）は保持する。
 """
 
+import io
 from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
@@ -115,7 +116,6 @@ def process_docx(src: Path, masker: Masker) -> tuple[bytes, str, str]:
                     pass
 
     # バイト列として出力
-    import io
     buf = io.BytesIO()
     doc.save(buf)
     output_bytes = buf.getvalue()

@@ -182,7 +182,7 @@ def _dedup(hits: list[tuple[int, int, str]]) -> list[tuple[int, int, str]]:
     kept: list[tuple[int, int, str]] = []
     for h in hits:
         hs, he = h[0], h[1]
-        if any(s <= hs < e or s < he <= e for s, e, _ in kept):
+        if any(s < he and hs < e for s, e, _ in kept):
             continue
         kept.append(h)
     kept.sort(key=lambda x: x[0])
