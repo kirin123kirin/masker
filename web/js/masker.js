@@ -11,6 +11,7 @@
 import { TokenStore } from './token_store.js';
 import { findDates } from './date_detector.js';
 import { RULES, PREFECTURES } from './rules.js';
+import { findPersonsOrgsHeuristic } from './heuristic_ner.js';
 
 const _ADDR_SUFFIXES = ['支社','支店','営業所','オフィス','本社','拠点','工場','センター','倉庫','事業所'];
 const _ADDR_SUFFIX_PAT = _ADDR_SUFFIXES.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
@@ -59,30 +60,35 @@ export class Masker {
             _register(start, end, `【日付${tokenId}】`);
         }
 
-        // ── 2. 人物・組織名（NER）──
+        // ── 2. 人物・組織名 ──
+        // 2a. Transformers.js NER（利用可能な場合）
+        let nerDone = false;
         if (this._ner) {
             try {
                 const entities = await this._ner.detect(text);
                 for (const entity of entities) {
-                    // Transformers.js のエンティティ形式:
-                    // { entity_group, score, word, start, end }
-                    const { entity_group, word, start, end } = entity;
+                    const { entity_group, start, end } = entity;
                     let category;
-                    if (entity_group === 'PER') {
-                        category = '人物';
-                    } else if (entity_group === 'ORG') {
-                        category = '組織';
-                    } else {
-                        continue;
-                    }
-                    // word が実際のテキストと一致するか確認
+                    if (entity_group === 'PER') category = '人物';
+                    else if (entity_group === 'ORG') category = '組織';
+                    else continue;
                     const original = text.slice(start, end);
                     if (!original.trim()) continue;
                     const tokenId = this._store.getOrCreate(category, original);
                     _register(start, end, `【${category}${tokenId}】`);
                 }
+                nerDone = true;
             } catch (_) {
-                // NER失敗時はルールのみで継続
+                // NER失敗 → ヒューリスティックにフォールバック
+            }
+        }
+
+        // 2b. ヒューリスティック（NER未使用・失敗時は全件、NER成功時は補完）
+        if (!nerDone) {
+            const heuristic = await findPersonsOrgsHeuristic(text);
+            for (const [start, end, original, category] of heuristic) {
+                const tokenId = this._store.getOrCreate(category, original);
+                _register(start, end, `【${category}${tokenId}】`);
             }
         }
 
