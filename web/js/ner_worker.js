@@ -1,11 +1,9 @@
 /**
- * NER Web Worker
- * Transformers.js を UMD として importScripts で読み込む
+ * NER Web Worker (ES module worker)
+ * Transformers.js を ES module として import する
  */
 
-importScripts('../lib/transformers.min.js');
-
-const { pipeline, env } = self.transformers ?? transformers;
+import { pipeline, env } from '../lib/transformers.min.js';
 
 env.localModelPath = '../models/';
 env.allowRemoteModels = false;
@@ -20,13 +18,7 @@ async function init() {
 }
 
 self.onmessage = async (e) => {
-    if (e.data.type === 'init') {
-        try {
-            await init();
-        } catch (err) {
-            self.postMessage({ type: 'error', error: err.message });
-        }
-    } else if (e.data.type === 'detect') {
+    if (e.data.type === 'detect') {
         try {
             const result = await ner(e.data.text);
             self.postMessage({ type: 'result', id: e.data.id, result });
