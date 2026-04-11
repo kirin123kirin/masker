@@ -1,12 +1,16 @@
 """
 HTMLファイル (.html/.htm) ハンドラー
 タグ・属性は保持し、テキストノードのみマスクする
+
+BOM (EF BB BF) 付き UTF-8 ファイルを読み込んだ場合、
+出力ファイルにも BOM を付与して元のエンコーディング指定を維持する。
 """
 
 import re
 from pathlib import Path
 from pii_masker.engine.masker import Masker
 
+_UTF8_BOM = b"\xef\xbb\xbf"
 
 # マスク対象外タグ（スクリプト・スタイルは処理しない）
 _SKIP_TAGS = re.compile(r"<(script|style)[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
@@ -16,7 +20,9 @@ _TEXT_NODE = re.compile(r"(>)([^<]+)(<)", re.DOTALL)
 
 
 def process_html(src: Path, masker: Masker) -> tuple[str, str, str]:
-    original = src.read_text(encoding="utf-8-sig")
+    raw = src.read_bytes()
+    has_bom = raw.startswith(_UTF8_BOM)
+    original = raw.decode("utf-8-sig")  # BOM を除去してデコード
 
     # script/style はスキップ（プレースホルダーに退避）
     skipped: list[str] = []
@@ -36,8 +42,11 @@ def process_html(src: Path, masker: Masker) -> tuple[str, str, str]:
     for i, content in enumerate(skipped):
         masked_working = masked_working.replace(f"%%SKIP{i}%%", content)
 
+    # BOM を復元
+    output = ("\ufeff" + masked_working) if has_bom else masked_working
+
     # プレビュー用テキスト抽出（タグ除去）
     original_text = re.sub(r"<[^>]+>", "", original)
     masked_text = re.sub(r"<[^>]+>", "", masked_working)
 
-    return masked_working, original_text, masked_text
+    return output, original_text, masked_text

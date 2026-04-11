@@ -1,9 +1,12 @@
 """
 SVGファイル (.svg) ハンドラー
 XMLとして解析し、text/tspan/title/desc 要素のテキストのみマスクする
+
+エンコーディング:
+  ファイルをバイト列として読み込み ET.fromstring(bytes) に渡すことで
+  XML宣言 (encoding="...") や BOM を自動処理する。
 """
 
-import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from pii_masker.engine.masker import Masker
@@ -11,17 +14,17 @@ from pii_masker.engine.masker import Masker
 # テキストコンテンツを持つ要素タグ（名前空間なし・あり両対応）
 _TEXT_TAGS = {"text", "tspan", "title", "desc", "textPath"}
 
+# SVG 名前空間をモジュールロード時に登録（出力 XML の xmlns 属性を簡潔に保つ）
+ET.register_namespace("", "http://www.w3.org/2000/svg")
+ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+
 
 def process_svg(src: Path, masker: Masker) -> tuple[str, str, str]:
-    original = src.read_text(encoding="utf-8")
+    raw_bytes = src.read_bytes()
 
-    # ElementTree は名前空間をそのまま保持する
-    # ただし xmlns 宣言が失われるケースがあるため文字列操作で補完
-    ET.register_namespace("", "http://www.w3.org/2000/svg")
-    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
-
+    # ElementTree がバイト列から XML 宣言のエンコーディングを自動検出する
     try:
-        root = ET.fromstring(original)
+        root = ET.fromstring(raw_bytes)
     except ET.ParseError as e:
         raise ValueError(f"SVG のパースに失敗しました: {e}")
 
@@ -53,10 +56,15 @@ def process_svg(src: Path, masker: Masker) -> tuple[str, str, str]:
 
     # XML 宣言付きで出力
     masked_xml = ET.tostring(root, encoding="unicode", xml_declaration=False)
-    # オリジナルの XML 宣言を先頭に付与
+
+    # オリジナルの XML 宣言をバイト列から抽出して先頭に付与
     xml_decl = ""
-    if original.startswith("<?xml"):
-        xml_decl = original[:original.index("?>") + 2] + "\n"
+    stripped = raw_bytes.lstrip()
+    if stripped.startswith(b"<?xml"):
+        decl_end = stripped.find(b"?>")
+        if decl_end != -1:
+            xml_decl = stripped[:decl_end + 2].decode("ascii", errors="replace") + "\n"
+
     output = xml_decl + masked_xml
 
     return output, "\n".join(original_texts), "\n".join(masked_texts)

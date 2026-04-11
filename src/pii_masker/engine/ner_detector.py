@@ -12,21 +12,32 @@
 """
 
 import re
+import warnings
 from pathlib import Path
 
 # ━━ GiNZA ロード試行 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 _nlp = None
+_load_attempted = False  # ロード試行済みフラグ（再試行コストを防ぐ）
+
 
 def _try_load_ginza() -> bool:
-    global _nlp
-    if _nlp is not None:
-        return True
+    global _nlp, _load_attempted
+    if _load_attempted:
+        return _nlp is not None
+    _load_attempted = True
     try:
         import spacy
         _nlp = spacy.load("ja_ginza")
         return True
-    except Exception:
+    except ImportError:
+        # spaCy / ja_ginza 未インストール → 正常なフォールバック
+        return False
+    except Exception as e:
+        warnings.warn(
+            f"GiNZA のロードに失敗しました（ヒューリスティックモードで継続）: {e}",
+            stacklevel=2,
+        )
         return False
 
 # ━━ 役職・敬称定義 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -166,7 +177,7 @@ def _find_by_heuristic(text: str) -> list[tuple[int, int, str, str]]:
         if re.fullmatch(r"[\d\s\W]+", original):
             return False
         # 重複区間チェック
-        if any(s <= start < e or s < end <= e for s, e in used):
+        if any(s < end and start < e for s, e in used):
             return False
         results.append((start, end, original, cat))
         used.append((start, end))

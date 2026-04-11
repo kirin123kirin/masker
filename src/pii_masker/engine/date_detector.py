@@ -104,8 +104,10 @@ _CANDIDATES: list[tuple[re.Pattern, bool]] = [
     ), False),
 
     # 和暦省略形: R7.4.1 / H30.3.31
+    # (?<![A-Za-z0-9_]) で英数字・アンダースコアに後続する M/S 等を除外
+    # （例: M25ボルト・SM25.3.31・v1R7.4.1 などの誤検出を防ぐ）
     (re.compile(
-        r"(?<![A-Za-z])[RHTMS]\d{1,2}[\.．][01]?\d[\.．][0-3]?\d(?!\d)"
+        r"(?<![A-Za-z0-9_])[RHTMS]\d{1,2}[\.．][01]?\d[\.．][0-3]?\d(?!\d)"
     ), False),
 
     # MM/DD 年なし（文脈チェック必要）
@@ -182,7 +184,7 @@ def _dedup(hits: list[tuple[int, int, str]]) -> list[tuple[int, int, str]]:
     kept: list[tuple[int, int, str]] = []
     for h in hits:
         hs, he = h[0], h[1]
-        if any(s <= hs < e or s < he <= e for s, e, _ in kept):
+        if any(s < he and hs < e for s, e, _ in kept):
             continue
         kept.append(h)
     kept.sort(key=lambda x: x[0])

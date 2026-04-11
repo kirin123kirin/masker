@@ -15,10 +15,11 @@
 
 import re
 import shutil
+import tempfile
 from pathlib import Path
 from pii_masker.engine.rules import RULES, PREFECTURES
 from pii_masker.engine.date_detector import find_dates
-from pii_masker.engine.ner_detector import find_persons_orgs, TITLES, get_detection_mode
+from pii_masker.engine.ner_detector import find_persons_orgs, get_detection_mode
 from pii_masker.engine.token_store import TokenStore
 
 _ADDR_SUFFIXES = (
@@ -27,9 +28,11 @@ _ADDR_SUFFIXES = (
 _ADDR_SUFFIX_PAT = "|".join(re.escape(s) for s in _ADDR_SUFFIXES)
 _PREF_PAT = "|".join(re.escape(p) for p in PREFECTURES)
 
-# 人名直後の役職・敬称を捕捉するパターン（マスク後に残す）
-_TITLE_AFTER_PAT = re.compile(
-    r"^(" + "|".join(re.escape(t) for t in TITLES) + r")"
+# 復元時の住所トークンパターン（モジュールレベルで事前コンパイル）
+_RESTORE_ADDR_PAT = re.compile(
+    r"(〒|(?:" + _PREF_PAT + r"))?"
+    r"(【住所[A-Z]+】)"
+    r"(" + _ADDR_SUFFIX_PAT + r")?"
 )
 
 
@@ -49,7 +52,7 @@ class Masker:
         replacements:  list[tuple[int, int, str]] = []
 
         def _register(start: int, end: int, rep: str):
-            if any(s <= start < e or s < end <= e for s, e in masked_ranges):
+            if any(s < end and start < e for s, e in masked_ranges):
                 return
             replacements.append((start, end, rep))
             masked_ranges.append((start, end))
@@ -61,11 +64,6 @@ class Masker:
 
         # ── 2. 人物・組織名 ──
         for start, end, original, category in find_persons_orgs(text):
-            # 直後に役職・敬称があれば取り込まず残す
-            after = text[end:]
-            title_m = _TITLE_AFTER_PAT.match(after)
-            title_suffix = title_m.group(1) if title_m else ""
-
             token_id = self._store.get_or_create(category, original)
             _register(start, end, f"【{category}{token_id}】")
 
@@ -73,7 +71,7 @@ class Masker:
         for cat, pattern, transform in RULES:
             for m in pattern.finditer(text):
                 start, end = m.start(), m.end()
-                if any(s <= start < e or s < end <= e for s, e in masked_ranges):
+                if any(s < end and start < e for s, e in masked_ranges):
                     continue
                 rep = self._make_replacement(cat, m, transform)
                 _register(start, end, rep)
@@ -98,15 +96,29 @@ class Masker:
     # ── TSVマッピング ──────────────────────────────────
 
     def save_mapping(self, path: Path):
-        """マッピングをTSV形式で保存。既存ファイルは .bak に退避（1世代）。"""
+        """マッピングをTSV形式で保存。既存ファイルは .bak に退避（1世代）。
+
+        書き込みは同一ディレクトリの一時ファイル経由で行い、
+        rename でアトミックに差し替える（書き込み失敗時に元ファイルを破壊しない）。
+        """
         if path.exists():
             shutil.copy2(path, path.with_name(path.name + ".bak"))
 
         lines = ["#カテゴリ\t元テキスト\tMD5\tラベル"]
         for cat, orig, h, label in self._store.rows():
-            orig_esc = orig.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+            orig_esc = orig.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r")
             lines.append(f"{cat}\t{orig_esc}\t{h}\t{label}")
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        content = "\n".join(lines) + "\n"
+
+        # 同一ディレクトリで tmp を作成し rename でアトミックに差し替え
+        tmp_fd, tmp_name = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+        try:
+            with open(tmp_fd, "w", encoding="utf-8") as f:
+                f.write(content)
+            Path(tmp_name).replace(path)
+        except Exception:
+            Path(tmp_name).unlink(missing_ok=True)
+            raise
 
     def load_mapping(self, path: Path):
         """TSVマッピングを読み込み、既存の蓄積テーブルにマージする。"""
@@ -117,7 +129,7 @@ class Masker:
             parts = line.split("\t")
             if len(parts) == 4:
                 cat, orig_esc, h, label = parts
-                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\\\", "\\")
+                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\r", "\r").replace("\\\\", "\\")
                 rows.append((cat, orig, h, label))
         self._store.load_rows(rows)
 
@@ -130,15 +142,10 @@ class Masker:
             parts = line.split("\t")
             if len(parts) == 4:
                 cat, orig_esc, h, label = parts
-                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\\\", "\\")
+                orig = orig_esc.replace("\\t", "\t").replace("\\n", "\n").replace("\\r", "\r").replace("\\\\", "\\")
                 restore_map[f"【{cat}{label}】"] = orig
 
         # 住所トークンの特殊復元（prefix・suffix の二重化防止）
-        addr_pat = re.compile(
-            r"(〒|(?:" + _PREF_PAT + r"))?"
-            r"(【住所[A-Z]+】)"
-            r"(" + _ADDR_SUFFIX_PAT + r")?"
-        )
         def _restore_addr(m: re.Match) -> str:
             prefix   = m.group(1) or ""
             token    = m.group(2)
@@ -151,7 +158,7 @@ class Masker:
                 result += suffix
             return result
 
-        result = addr_pat.sub(_restore_addr, text)
+        result = _RESTORE_ADDR_PAT.sub(_restore_addr, text)
 
         # 残りの全トークン復元
         result = re.sub(
