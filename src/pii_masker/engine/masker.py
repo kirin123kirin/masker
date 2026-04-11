@@ -15,6 +15,7 @@
 
 import re
 import shutil
+import tempfile
 from pathlib import Path
 from pii_masker.engine.rules import RULES, PREFECTURES
 from pii_masker.engine.date_detector import find_dates
@@ -98,7 +99,11 @@ class Masker:
     # ── TSVマッピング ──────────────────────────────────
 
     def save_mapping(self, path: Path):
-        """マッピングをTSV形式で保存。既存ファイルは .bak に退避（1世代）。"""
+        """マッピングをTSV形式で保存。既存ファイルは .bak に退避（1世代）。
+
+        書き込みは同一ディレクトリの一時ファイル経由で行い、
+        rename でアトミックに差し替える（書き込み失敗時に元ファイルを破壊しない）。
+        """
         if path.exists():
             shutil.copy2(path, path.with_name(path.name + ".bak"))
 
@@ -106,7 +111,17 @@ class Masker:
         for cat, orig, h, label in self._store.rows():
             orig_esc = orig.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r")
             lines.append(f"{cat}\t{orig_esc}\t{h}\t{label}")
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        content = "\n".join(lines) + "\n"
+
+        # 同一ディレクトリで tmp を作成し rename でアトミックに差し替え
+        tmp_fd, tmp_name = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+        try:
+            with open(tmp_fd, "w", encoding="utf-8") as f:
+                f.write(content)
+            Path(tmp_name).replace(path)
+        except Exception:
+            Path(tmp_name).unlink(missing_ok=True)
+            raise
 
     def load_mapping(self, path: Path):
         """TSVマッピングを読み込み、既存の蓄積テーブルにマージする。"""
