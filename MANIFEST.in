@@ -4,9 +4,10 @@ include README.md
 include pyproject.toml
 
 # カスタム辞書テンプレート
-recursive-include src/pii_masker/dict *.txt
+recursive-include src/pymasking/dict *.txt
 
 # 除外
+prune web
 global-exclude __pycache__
 global-exclude *.py[cod]
 global-exclude *.so

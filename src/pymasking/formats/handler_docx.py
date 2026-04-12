@@ -11,7 +11,7 @@ from docx import Document
 from docx.oxml.ns import qn
 from docx.text.paragraph import Paragraph
 from docx.table import Table
-from pii_masker.engine.masker import Masker
+from pymasking.engine.masker import Masker
 
 
 def _mask_paragraph(para: Paragraph, masker: Masker) -> tuple[str, str]:
