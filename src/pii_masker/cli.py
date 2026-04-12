@@ -30,25 +30,29 @@ SUPPORTED_EXTS = ".txt .html .htm .svg .docx .pptx .pdf .xlsx"
 # ━━ ハンドラーマップ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def _get_handler(ext: str):
-    from pii_masker.formats.handler_txt  import process_txt
-    from pii_masker.formats.handler_html import process_html
-    from pii_masker.formats.handler_svg  import process_svg
-    from pii_masker.formats.handler_docx import process_docx
-    from pii_masker.formats.handler_pptx import process_pptx
-    from pii_masker.formats.handler_pdf  import process_pdf
-    from pii_masker.formats.handler_xlsx import process_xlsx
-
-    HANDLERS: dict[str, tuple] = {
-        ".txt":  (process_txt,  ".txt"),
-        ".html": (process_html, ".html"),
-        ".htm":  (process_html, ".htm"),
-        ".svg":  (process_svg,  ".svg"),
-        ".docx": (process_docx, ".docx"),
-        ".pptx": (process_pptx, ".pptx"),
-        ".pdf":  (process_pdf,  ".md"),
-        ".xlsx": (process_xlsx, ".xlsx"),
-    }
-    return HANDLERS.get(ext.lower())
+    e = ext.lower()
+    if e == ".txt":
+        from pii_masker.formats.handler_txt  import process_txt
+        return (process_txt,  ".txt")
+    if e in (".html", ".htm"):
+        from pii_masker.formats.handler_html import process_html
+        return (process_html, e)
+    if e == ".svg":
+        from pii_masker.formats.handler_svg  import process_svg
+        return (process_svg,  ".svg")
+    if e == ".docx":
+        from pii_masker.formats.handler_docx import process_docx
+        return (process_docx, ".docx")
+    if e == ".pptx":
+        from pii_masker.formats.handler_pptx import process_pptx
+        return (process_pptx, ".pptx")
+    if e == ".pdf":
+        from pii_masker.formats.handler_pdf  import process_pdf
+        return (process_pdf,  ".md")
+    if e == ".xlsx":
+        from pii_masker.formats.handler_xlsx import process_xlsx
+        return (process_xlsx, ".xlsx")
+    return None
 
 
 # ━━ ファイルリスト展開 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -371,7 +371,7 @@ class TestCLI:
         src.write_text("田中太郎部長、03-1234-5678、2025年4月1日", encoding="utf-8")
 
         args = argparse.Namespace(
-            file=str(src),
+            files=[str(src)],
             output=str(tmp_path / "output.txt"),
             mapping=str(tmp_path / "mapping.tsv"),
         )
@@ -393,7 +393,7 @@ class TestCLI:
 
         # まずマスク
         cmd_mask(argparse.Namespace(
-            file=str(src),
+            files=[str(src)],
             output=str(masked_path),
             mapping=str(map_path),
         ))
@@ -401,7 +401,7 @@ class TestCLI:
         # 復元
         restored_path = tmp_path / "restored.txt"
         ret = cmd_unmask(argparse.Namespace(
-            file=str(masked_path),
+            files=[str(masked_path)],
             output=str(restored_path),
             mapping=str(map_path),
         ))
@@ -414,7 +414,7 @@ class TestCLI:
         from pii_masker.cli import cmd_unmask
 
         args = argparse.Namespace(
-            file=str(tmp_path / "nonexistent.txt"),
+            files=[str(tmp_path / "nonexistent.txt")],
             output=None,
             mapping=None,
         )
@@ -429,7 +429,7 @@ class TestCLI:
         src.write_text("name,phone\n田中太郎,03-1234-5678")
 
         args = argparse.Namespace(
-            file=str(src),
+            files=[str(src)],
             output=None,
             mapping=None,
         )
