@@ -1,6 +1,10 @@
 /**
  * NER Web Worker (ES module worker)
  * Transformers.js を ES module として import する
+ * モデル: tsmatz/xlm-roberta-ner-japanese
+ *   - XLM-RoBERTa ベース (SentencePiece, MeCab不要)
+ *   - 日本語特化NER (Stockmark Wikipedia NER, F1≈0.893)
+ *   - 出力ラベル: PER / ORG / ORG-P / ORG-O / LOC / INS / PRD / EVT
  */
 
 import { pipeline, env } from '../lib/transformers.min.js';
@@ -11,7 +15,7 @@ env.allowRemoteModels = false;
 let ner = null;
 
 async function init() {
-    ner = await pipeline('token-classification', 'Xenova/bert-base-multilingual-cased-ner-hrl', {
+    ner = await pipeline('token-classification', 'tsmatz/xlm-roberta-ner-japanese', {
         aggregation_strategy: 'simple',
     });
     self.postMessage({ type: 'ready' });

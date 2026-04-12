@@ -71,7 +71,7 @@ export class Masker {
                     const { entity_group, start, end } = entity;
                     let category;
                     if (entity_group === 'PER') category = '人物';
-                    else if (entity_group === 'ORG') category = '組織';
+                    else if (entity_group === 'ORG' || entity_group === 'ORG-P' || entity_group === 'ORG-O') category = '組織';
                     else continue;
                     const original = text.slice(start, end);
                     if (!original.trim()) continue;
