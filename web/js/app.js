@@ -113,16 +113,17 @@ if (nerProxy) {
     });
 }
 
-// 動作確認用セルフテスト
-setTimeout(() => {
-    const testText = '田中角栄さん';
-    const testMasker = new Masker(null);
-    testMasker.mask(testText).then(result => {
-        console.log('[selftest] input:', testText, '→ output:', result);
-    }).catch(err => {
-        console.error('[selftest] error:', err);
+// 動作確認用セルフテスト（NER付き）
+if (nerProxy) {
+    nerProxy._readyPromise.then(() => {
+        const testText = '田中角栄さん';
+        masker.mask(testText).then(result => {
+            console.log('[selftest NER] input:', testText, '→ output:', result);
+        }).catch(err => {
+            console.error('[selftest NER] error:', err);
+        });
     });
-}, 500);
+}
 
 // ── ドラッグ＆ドロップ ───────────────────────────────────────────────────────
 
