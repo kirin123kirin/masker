@@ -53,7 +53,11 @@ class NerProxy {
     }
 
     async detect(text) {
-        await this._readyPromise;
+        // 10秒でタイムアウト（ONNX WASM ロードハング対策）
+        const timeout = new Promise((_, rej) =>
+            setTimeout(() => rej(new Error('NER timeout')), 10000)
+        );
+        await Promise.race([this._readyPromise, timeout]);
         const id = this._nextId++;
         return new Promise((resolve) => {
             this._pending.set(id, { resolve });

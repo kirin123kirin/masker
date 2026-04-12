@@ -86,6 +86,7 @@ export class Masker {
         // 2b. ヒューリスティック（NER未使用・失敗時は全件、NER成功時は補完）
         if (!nerDone) {
             const heuristic = await findPersonsOrgsHeuristic(text);
+            if (heuristic.length > 0) console.log('[heuristic]', heuristic);
             for (const [start, end, original, category] of heuristic) {
                 const tokenId = this._store.getOrCreate(category, original);
                 _register(start, end, `【${category}${tokenId}】`);
