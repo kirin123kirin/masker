@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pii-masker"
-version = "1.3.0"
+version = "1.4.0"
 description = "個人情報・機密情報を可逆・一意なトークンにマスキングするオフラインライブラリ"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -43,6 +43,10 @@ dependencies = [
 nlp = [
     "ginza>=5.2.0",
     "ja-ginza>=5.2.0",
+]
+# クリップボード操作の強化（なくても動作するが入れると安定）
+clipboard = [
+    "pyperclip>=1.8.0",
 ]
 dev = [
     "build>=1.0",
