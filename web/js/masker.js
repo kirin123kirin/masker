@@ -84,8 +84,9 @@ export class Masker {
             }
         }
 
-        // 2b. ヒューリスティック（NER未使用・失敗時は全件、NER成功時は補完）
-        if (!nerDone) {
+        // 2b. ヒューリスティック（NER結果を補完、常に実行）
+        // NERが成功しても検出漏れを補うため常に実行。_register の重複チェックで二重マスクを防ぐ。
+        {
             const heuristic = await findPersonsOrgsHeuristic(text);
             if (heuristic.length > 0) console.log('[heuristic]', heuristic);
             for (const [start, end, original, category] of heuristic) {
