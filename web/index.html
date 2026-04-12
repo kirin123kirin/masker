@@ -47,7 +47,8 @@ h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
 
 <div id="status"></div>
 
-<script src="lib/jszip.min.js"></script>
+<script>console.log('[index.html] scripts loading, JSZip will load next');</script>
+<script src="lib/jszip.min.js" onload="console.log('[index.html] jszip loaded')" onerror="console.error('[index.html] jszip FAILED to load')"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

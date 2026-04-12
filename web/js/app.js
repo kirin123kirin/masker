@@ -3,6 +3,8 @@
  * ファイルをドロップ/選択 → 処理 → ダウンロードボタン表示
  */
 
+console.log('[app.js] module loading...');
+
 import { Masker } from './masker.js';
 import { processTxt } from './handlers/txt.js';
 import { processHtml } from './handlers/html.js';
@@ -54,13 +56,20 @@ class NerProxy {
 
     async detect(text) {
         // 10秒でタイムアウト（ONNX WASM ロードハング対策）
-        const timeout = new Promise((_, rej) =>
-            setTimeout(() => rej(new Error('NER timeout')), 10000)
+        const readyTimeout = new Promise((_, rej) =>
+            setTimeout(() => rej(new Error('NER ready timeout')), 10000)
         );
-        await Promise.race([this._readyPromise, timeout]);
+        await Promise.race([this._readyPromise, readyTimeout]);
         const id = this._nextId++;
-        return new Promise((resolve) => {
-            this._pending.set(id, { resolve });
+        // 検出自体にも30秒タイムアウト
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+                this._pending.delete(id);
+                reject(new Error('NER detection timeout'));
+            }, 30000);
+            this._pending.set(id, {
+                resolve: (result) => { clearTimeout(timer); resolve(result); }
+            });
             this._worker.postMessage({ type: 'detect', id, text });
         });
     }
@@ -93,6 +102,7 @@ try {
 
 // NERが失敗してもルールベースで動作するMaskerを作成
 masker = new Masker(nerProxy);
+console.log('[app.js] Masker created, nerProxy:', !!nerProxy);
 
 // NER準備完了を待ち、失敗してもMaskerを再作成
 if (nerProxy) {
@@ -102,6 +112,17 @@ if (nerProxy) {
         masker = new Masker(null); // NERなしのMasker
     });
 }
+
+// 動作確認用セルフテスト
+setTimeout(() => {
+    const testText = '田中角栄さん';
+    const testMasker = new Masker(null);
+    testMasker.mask(testText).then(result => {
+        console.log('[selftest] input:', testText, '→ output:', result);
+    }).catch(err => {
+        console.error('[selftest] error:', err);
+    });
+}, 500);
 
 // ── ドラッグ＆ドロップ ───────────────────────────────────────────────────────
 
@@ -154,8 +175,10 @@ function getMimeType(ext) {
 }
 
 async function handleFiles(files) {
+    console.log('[handleFiles] files:', files.length);
     for (const file of files) {
         const ext = getExtension(file.name);
+        console.log('[handleFiles] processing:', file.name, 'ext:', ext);
         if (!SUPPORTED_EXTENSIONS.has(ext)) {
             addCard(file.name, '❌', '非対応形式', `${ext} は処理できません`, null);
             continue;
@@ -165,6 +188,7 @@ async function handleFiles(files) {
 }
 
 async function processFile(file, ext) {
+    console.log('[processFile] start:', file.name, 'ext:', ext, 'masker:', !!masker);
     const cardId = `card-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const card = addCard(file.name, '⏳', '処理中...', 'マスク処理を実行中', null);
     card.id = cardId;

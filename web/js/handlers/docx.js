@@ -5,8 +5,12 @@
  * 表 (w:tbl)、ヘッダー・フッター も処理
  */
 
+console.log('[docx.js] module loaded');
+
 export async function processDocx(file, masker) {
+    console.log('[docx] processDocx called:', file.name);
     const JSZip = window.JSZip;
+    console.log('[docx] JSZip available:', !!JSZip);
     if (!JSZip) throw new Error('JSZipが読み込まれていません');
 
     const arrayBuffer = await file.arrayBuffer();
@@ -14,11 +18,13 @@ export async function processDocx(file, masker) {
 
     // 処理対象ファイルを特定
     const fileNames = Object.keys(zip.files);
+    console.log('[docx] zip entries:', fileNames.length, fileNames.slice(0, 10));
     const targetFiles = fileNames.filter(name =>
         name === 'word/document.xml' ||
         /^word\/header\d*\.xml$/.test(name) ||
         /^word\/footer\d*\.xml$/.test(name)
     );
+    console.log('[docx] targetFiles:', targetFiles);
 
     for (const fileName of targetFiles) {
         const xmlStr = await zip.file(fileName).async('string');
@@ -49,6 +55,7 @@ async function _processDocxXml(xmlStr, masker) {
 
     // w:p 要素を全取得（w:tbl 内も含む）
     const paragraphs = doc.getElementsByTagNameNS(W_NS, 'p');
+    console.log('[docx] paragraphs found:', paragraphs.length, 'in', 'document');
 
     for (const para of Array.from(paragraphs)) {
         await _maskParagraph(para, W_NS, masker);
@@ -75,6 +82,7 @@ async function _maskParagraph(para, W_NS, masker) {
     }
 
     const original = runTexts.join('');
+    console.log('[docx] paragraph original:', JSON.stringify(original));
     if (!original.trim()) return;
 
     const masked = await masker.mask(original);
