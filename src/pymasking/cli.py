@@ -1,5 +1,5 @@
 """
-pii-masker CLI
+pymasking CLI
 
 使い方:
   mask   [files...] [オプション]   # マスキング実行
@@ -32,25 +32,25 @@ SUPPORTED_EXTS = ".txt .html .htm .svg .docx .pptx .pdf .xlsx"
 def _get_handler(ext: str):
     e = ext.lower()
     if e == ".txt":
-        from pii_masker.formats.handler_txt  import process_txt
+        from pymasking.formats.handler_txt  import process_txt
         return (process_txt,  ".txt")
     if e in (".html", ".htm"):
-        from pii_masker.formats.handler_html import process_html
+        from pymasking.formats.handler_html import process_html
         return (process_html, e)
     if e == ".svg":
-        from pii_masker.formats.handler_svg  import process_svg
+        from pymasking.formats.handler_svg  import process_svg
         return (process_svg,  ".svg")
     if e == ".docx":
-        from pii_masker.formats.handler_docx import process_docx
+        from pymasking.formats.handler_docx import process_docx
         return (process_docx, ".docx")
     if e == ".pptx":
-        from pii_masker.formats.handler_pptx import process_pptx
+        from pymasking.formats.handler_pptx import process_pptx
         return (process_pptx, ".pptx")
     if e == ".pdf":
-        from pii_masker.formats.handler_pdf  import process_pdf
+        from pymasking.formats.handler_pdf  import process_pdf
         return (process_pdf,  ".md")
     if e == ".xlsx":
-        from pii_masker.formats.handler_xlsx import process_xlsx
+        from pymasking.formats.handler_xlsx import process_xlsx
         return (process_xlsx, ".xlsx")
     return None
 
@@ -232,7 +232,7 @@ def _do_mask_file(
     out_path: Path | None,
     map_path: Path | None,
 ) -> int:
-    from pii_masker.engine.masker import Masker
+    from pymasking.engine.masker import Masker
 
     handler_info = _get_handler(src.suffix)
     if handler_info is None:
@@ -272,7 +272,7 @@ def _do_unmask_file(
     out_path: Path | None,
     map_path: Path | None,
 ) -> int:
-    from pii_masker.engine.masker import Masker
+    from pymasking.engine.masker import Masker
 
     ext = src.suffix.lower()
     if ext not in (".txt", ".html", ".htm", ".svg", ".md"):
@@ -337,7 +337,7 @@ def cmd_unmask(args: argparse.Namespace) -> int:
 # ━━ クリップボードコマンド ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def cmd_clipboard(mode: str, args: argparse.Namespace) -> int:
-    from pii_masker.engine.masker import Masker
+    from pymasking.engine.masker import Masker
 
     clip = _clipboard_read()
     if clip is None:
@@ -348,7 +348,7 @@ def cmd_clipboard(mode: str, args: argparse.Namespace) -> int:
 
     # ── ファイルモード ──
     if kind == "files":
-        temp_dir = Path(tempfile.gettempdir()) / "pii_masker"
+        temp_dir = Path(tempfile.gettempdir()) / "pymasking"
         temp_dir.mkdir(parents=True, exist_ok=True)
         rc = 0
         for src in value:
@@ -379,7 +379,7 @@ def cmd_clipboard(mode: str, args: argparse.Namespace) -> int:
         result = masker.mask(text)
 
         # マッピングを TEMP に保存（後で unmask できるよう）
-        temp_dir = Path(tempfile.gettempdir()) / "pii_masker"
+        temp_dir = Path(tempfile.gettempdir()) / "pymasking"
         temp_dir.mkdir(parents=True, exist_ok=True)
         map_path = temp_dir / "clipboard_mapping.tsv"
         masker.save_mapping(map_path)
@@ -390,7 +390,7 @@ def cmd_clipboard(mode: str, args: argparse.Namespace) -> int:
     else:
         if not args.mapping:
             # デフォルトの TEMP マッピングを自動参照
-            default_map = Path(tempfile.gettempdir()) / "pii_masker" / "clipboard_mapping.tsv"
+            default_map = Path(tempfile.gettempdir()) / "pymasking" / "clipboard_mapping.tsv"
             if default_map.exists():
                 map_path = default_map
                 print(f"[unmask] マッピング自動使用: {map_path}")

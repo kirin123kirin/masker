@@ -1,5 +1,5 @@
 """
-pii-masker テストスイート
+pymasking テストスイート
 
 テスト実行:
   pytest tests/ -v
@@ -7,7 +7,7 @@ pii-masker テストスイート
 
 import pytest
 from pathlib import Path
-from pii_masker import Masker
+from pymasking import Masker
 
 
 # ━━ フィクスチャ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -326,7 +326,7 @@ class TestCrossSessionConsistency:
 class TestFileHandlers:
 
     def test_txt_handler(self, fresh_masker, tmp_path):
-        from pii_masker.formats.handler_txt import process_txt
+        from pymasking.formats.handler_txt import process_txt
         src = tmp_path / "test.txt"
         src.write_text("田中太郎部長、03-1234-5678、2025年4月1日", encoding="utf-8")
         output, orig, masked = process_txt(src, fresh_masker)
@@ -334,7 +334,7 @@ class TestFileHandlers:
         assert "【日付" in masked
 
     def test_html_handler(self, fresh_masker, tmp_path):
-        from pii_masker.formats.handler_html import process_html
+        from pymasking.formats.handler_html import process_html
         src = tmp_path / "test.html"
         src.write_text(
             "<html><body><p>田中太郎部長、03-1234-5678</p></body></html>",
@@ -345,7 +345,7 @@ class TestFileHandlers:
         assert "【電話" in masked
 
     def test_svg_handler(self, fresh_masker, tmp_path):
-        from pii_masker.formats.handler_svg import process_svg
+        from pymasking.formats.handler_svg import process_svg
         src = tmp_path / "test.svg"
         src.write_text(
             '<?xml version="1.0"?>'
@@ -365,7 +365,7 @@ class TestCLI:
 
     def test_mask_command(self, tmp_path):
         import argparse
-        from pii_masker.cli import cmd_mask
+        from pymasking.cli import cmd_mask
 
         src = tmp_path / "input.txt"
         src.write_text("田中太郎部長、03-1234-5678、2025年4月1日", encoding="utf-8")
@@ -382,7 +382,7 @@ class TestCLI:
 
     def test_unmask_command(self, tmp_path):
         import argparse
-        from pii_masker.cli import cmd_mask, cmd_unmask
+        from pymasking.cli import cmd_mask, cmd_unmask
 
         src = tmp_path / "input.txt"
         original = "田中太郎部長、03-1234-5678、2025年4月1日"
@@ -411,7 +411,7 @@ class TestCLI:
 
     def test_unmask_file_not_found(self, tmp_path):
         import argparse
-        from pii_masker.cli import cmd_unmask
+        from pymasking.cli import cmd_unmask
 
         args = argparse.Namespace(
             files=[str(tmp_path / "nonexistent.txt")],
@@ -423,7 +423,7 @@ class TestCLI:
 
     def test_mask_unsupported_format(self, tmp_path):
         import argparse
-        from pii_masker.cli import cmd_mask
+        from pymasking.cli import cmd_mask
 
         src = tmp_path / "file.csv"
         src.write_text("name,phone\n田中太郎,03-1234-5678")

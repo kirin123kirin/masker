@@ -6,7 +6,7 @@ BOM (EF BB BF) 付き UTF-8 ファイルを読み込んだ場合、
 """
 
 from pathlib import Path
-from pii_masker.engine.masker import Masker
+from pymasking.engine.masker import Masker
 
 _UTF8_BOM = b"\xef\xbb\xbf"
 

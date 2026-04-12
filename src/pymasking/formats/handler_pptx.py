@@ -8,7 +8,7 @@ import io
 from pathlib import Path
 from pptx import Presentation
 from pptx.util import Pt
-from pii_masker.engine.masker import Masker
+from pymasking.engine.masker import Masker
 
 
 def _mask_text_frame(tf, masker: Masker) -> tuple[list[str], list[str]]:

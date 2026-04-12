@@ -17,10 +17,10 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
-from pii_masker.engine.rules import RULES, PREFECTURES
-from pii_masker.engine.date_detector import find_dates
-from pii_masker.engine.ner_detector import find_persons_orgs, get_detection_mode
-from pii_masker.engine.token_store import TokenStore
+from pymasking.engine.rules import RULES, PREFECTURES
+from pymasking.engine.date_detector import find_dates
+from pymasking.engine.ner_detector import find_persons_orgs, get_detection_mode
+from pymasking.engine.token_store import TokenStore
 
 _ADDR_SUFFIXES = (
     "支社","支店","営業所","オフィス","本社","拠点","工場","センター","倉庫","事業所"

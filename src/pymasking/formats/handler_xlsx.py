@@ -10,7 +10,7 @@ Excelファイル (.xlsx) ハンドラー
 
 import io
 from pathlib import Path
-from pii_masker.engine.masker import Masker
+from pymasking.engine.masker import Masker
 
 try:
     import openpyxl

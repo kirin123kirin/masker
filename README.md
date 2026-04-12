@@ -1,11 +1,11 @@
-# pii-masker
+# pymasking
 
 **個人情報・機密情報マスキングライブラリ** — 完全オフライン動作
 
 議事録・提案書などのドキュメント内の機密情報を、人間が読んで意味のわかるトークンに**可逆変換**します。
 
 ```python
-from pii_masker import Masker
+from pymasking import Masker
 
 masker = Masker()
 masked = masker.mask("田中太郎部長、ABC株式会社、03-1234-5678、3,000万円、2025年4月1日")
@@ -15,13 +15,13 @@ masked = masker.mask("田中太郎部長、ABC株式会社、03-1234-5678、3,00
 ## インストール
 
 ```bash
-pip install pii-masker
+pip install pymasking
 ```
 
 人名・組織名の高精度NLP検出（オプション）:
 
 ```bash
-pip install "pii-masker[nlp]"
+pip install "pymasking[nlp]"
 ```
 
 > **動作環境**: Python 3.12 以上。外部通信不要（初回 `pip install` 後は完全オフライン動作）。
@@ -33,7 +33,7 @@ pip install "pii-masker[nlp]"
 ### テキストのマスキング
 
 ```python
-from pii_masker import Masker
+from pymasking import Masker
 from pathlib import Path
 
 masker = Masker()
@@ -54,8 +54,8 @@ assert restored == "田中太郎部長、03-1234-5678、2025年4月1日"
 
 ```python
 from pathlib import Path
-from pii_masker import Masker
-from pii_masker.formats.handler_docx import process_docx
+from pymasking import Masker
+from pymasking.formats.handler_docx import process_docx
 
 masker = Masker()
 src = Path("議事録.docx")
@@ -79,7 +79,7 @@ handler(src: Path, masker: Masker) -> tuple[bytes | str, str, str]
 
 社内固有の人名・組織名を辞書登録すると確実に検出されます。
 
-`src/pii_masker/dict/custom_dict.txt` を直接編集:
+`src/pymasking/dict/custom_dict.txt` を直接編集:
 
 ```
 # カテゴリ,名称
@@ -92,7 +92,7 @@ handler(src: Path, masker: Masker) -> tuple[bytes | str, str, str]
 コードから辞書パスを指定する場合:
 
 ```python
-from pii_masker.engine.ner_detector import _CUSTOM_DICT_PATH
+from pymasking.engine.ner_detector import _CUSTOM_DICT_PATH
 _CUSTOM_DICT_PATH.write_text("人物,田中太郎\n組織,ABC商事\n", encoding="utf-8")
 ```
 
@@ -100,7 +100,7 @@ _CUSTOM_DICT_PATH.write_text("人物,田中太郎\n組織,ABC商事\n", encoding
 
 ## CLIリファレンス
 
-`pip install pii-masker` で `mask` / `unmask` コマンドが利用可能になります。
+`pip install pymasking` で `mask` / `unmask` コマンドが利用可能になります。
 
 ### `mask` — マスキング実行
 
@@ -166,7 +166,7 @@ unmask 議事録_masked.txt -m .secret/mapping.json -o 議事録_復元済み.tx
 ### `Masker` クラス
 
 ```python
-from pii_masker import Masker
+from pymasking import Masker
 ```
 
 #### `Masker()`
@@ -248,7 +248,7 @@ print(masker.detection_mode)  # "ginza" または "heuristic"
 ### スタンドアロン関数
 
 ```python
-from pii_masker import find_dates, find_persons_orgs
+from pymasking import find_dates, find_persons_orgs
 ```
 
 #### `find_dates(text: str) -> list[tuple[int, int, str]]`
@@ -352,7 +352,7 @@ results = find_persons_orgs("田中太郎部長とABC株式会社の契約")
 
 ### GiNZAモード（高精度）
 
-`pip install "pii-masker[nlp]"` でGiNZAをインストールすると自動的に有効になります。spaCyの日本語モデルを使用した固有表現認識（NER）により、より高精度な検出が可能です。
+`pip install "pymasking[nlp]"` でGiNZAをインストールすると自動的に有効になります。spaCyの日本語モデルを使用した固有表現認識（NER）により、より高精度な検出が可能です。
 
 ### ヒューリスティックモード（デフォルト）
 
