@@ -113,8 +113,9 @@ export async function findPersonsOrgsHeuristic(text) {
     function tryAdd(start, end, original, cat) {
         original = original.trim();
         if (!original || original.length < 2) return false;
-        // 数字・記号のみは除外
-        if (/^[\d\s\W]+$/.test(original)) return false;
+        // 数字・ASCII記号のみは除外（日本語・英字は通す）
+        // 注: JSの \W はASCIIのみ。漢字・ひらがな等は \W 扱いになるため使用不可
+        if (!/[a-zA-Z\u3040-\u9FFF]/.test(original)) return false;
         // 重複区間チェック
         if (used.some(([s, e]) => s < end && start < e)) return false;
         results.push([start, end, original, cat]);
