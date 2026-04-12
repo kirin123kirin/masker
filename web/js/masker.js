@@ -44,6 +44,7 @@ export class Masker {
      * @returns {Promise<string>}
      */
     async mask(text) {
+        console.log('[mask] called, length:', text.length, 'preview:', text.slice(0, 40));
         const maskedRanges = []; // [start, end][]
         const replacements = []; // [start, end, rep][]
 
