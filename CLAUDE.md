@@ -38,6 +38,13 @@ masker/
 └── README.md
 ```
 
+## Git 運用ルール
+
+- **必ず `main` ブランチで作業し、`main` に直接コミット・プッシュすること**
+- フィーチャーブランチは作成しない
+- 作業完了後は必ず `git push origin main` を実行する
+- プッシュ前に `git pull origin main --rebase` で最新を取り込む
+
 ## 開発環境セットアップ
 
 ```bash
