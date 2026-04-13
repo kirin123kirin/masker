@@ -30,4 +30,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         # OIDC Trusted Publishing を使用（APIトークン不要）
         # PyPI側で GitHub リポジトリを Trusted Publisher に登録する必要があります
-        # 設定: https://pypi.org/manage/project/pii-masker/settings/publishing/
+        # 設定: https://pypi.org/manage/project/pymasking/settings/publishing/
