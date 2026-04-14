@@ -11,7 +11,7 @@
 import { TokenStore } from './token_store.js';
 import { findDates } from './date_detector.js';
 import { RULES, PREFECTURES } from './rules.js';
-import { findPersonsOrgsHeuristic } from './heuristic_ner.js';
+import { TITLES, findPersonsOrgsHeuristic } from './heuristic_ner.js';
 
 const _ADDR_SUFFIXES = ['支社','支店','営業所','オフィス','本社','拠点','工場','センター','倉庫','事業所'];
 const _ADDR_SUFFIX_PAT = _ADDR_SUFFIXES.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
@@ -85,6 +85,45 @@ function _aggregateNerEntities(rawEntities, text) {
     return results;
 }
 
+/**
+ * NERがORGと誤認識した「人名+役職」パターンを修正する。
+ *
+ * 例: NER が「田中課」をORGと検出し、直後に「長」→「課長」が続く場合、
+ *     「田中」をPERとして扱い直す。
+ *
+ * アルゴリズム:
+ *   各ORGエンティティについて、そのword内のどこかからTITLEが始まっていないか確認。
+ *   見つかれば TITLE開始位置までをPERに差し替える。
+ */
+function _fixNerOrgWithTitle(entities, text) {
+    const result = [];
+    for (const ent of entities) {
+        const { entity_group, start, end, word, score } = ent;
+        if (entity_group !== 'ORG' && entity_group !== 'ORG-P' && entity_group !== 'ORG-O') {
+            result.push(ent);
+            continue;
+        }
+        // wordの末尾数文字 + 直後数文字 を合わせてTITLEが含まれるか確認
+        // extended: エンティティ範囲 + 後ろ最大6文字
+        const extended = text.slice(start, Math.min(end + 6, text.length));
+        let corrected = false;
+        for (const title of TITLES) {
+            const idx = extended.indexOf(title);
+            // エンティティの先頭でなく（idx > 0）、かつエンティティ内に境界がある場合
+            if (idx > 0 && idx <= word.length) {
+                const newEnd = start + idx;
+                if (newEnd - start >= 2) {
+                    result.push({ entity_group: 'PER', word: text.slice(start, newEnd), start, end: newEnd, score });
+                    corrected = true;
+                    break;
+                }
+            }
+        }
+        if (!corrected) result.push(ent);
+    }
+    return result;
+}
+
 export class Masker {
     /**
      * @param {object|null} nerProxy - { detect(text): Promise<entities[]> } | null
@@ -121,27 +160,18 @@ export class Masker {
             _register(start, end, `【日付${tokenId}】`);
         }
 
-        // ── 2. 人物・組織名 ──
-        // 2a. ヒューリスティック（最優先）
-        // 役職・敬称ルールは信頼度が高いため、NERより先に実行して範囲を確保する。
-        // NERが「田中課」を組織と誤認識しても、先に「田中」を人名として確保できる。
-        {
-            const heuristic = await findPersonsOrgsHeuristic(text);
-            if (heuristic.length > 0) console.log('[heuristic]', heuristic);
-            for (const [start, end, original, category] of heuristic) {
-                const tokenId = this._store.getOrCreate(category, original);
-                _register(start, end, `【${category}${tokenId}】`);
-            }
-        }
+        // ── 2. 人物・組織名（優先順位: NER → カスタム辞書 → ヒューリスティック）──
 
-        // 2b. Transformers.js NER（ヒューリスティックで拾えなかった固有名詞を補完）
+        // 2a. Transformers.js NER（最優先）
         if (this._ner) {
             try {
                 const rawEntities = await this._ner.detect(text);
                 console.log('[NER raw]', JSON.stringify(rawEntities));
                 // ONNX版では entity_group の代わりに entity、start/end が null で
                 // 1文字ずつ返ってくるため、masker 側で集約・オフセット再計算を行う
-                const entities = _aggregateNerEntities(rawEntities, text);
+                const aggregated = _aggregateNerEntities(rawEntities, text);
+                // NERがORGと誤認識した「人名+役職」パターンを修正
+                const entities = _fixNerOrgWithTitle(aggregated, text);
                 console.log('[NER processed]', JSON.stringify(entities));
                 for (const { entity_group, start, end } of entities) {
                     let category;
@@ -156,6 +186,16 @@ export class Masker {
                 }
             } catch (err) {
                 console.error('[NER error]', err);
+            }
+        }
+
+        // 2b. カスタム辞書＋ヒューリスティック（NERで拾えなかった箇所を補完）
+        {
+            const heuristic = await findPersonsOrgsHeuristic(text);
+            if (heuristic.length > 0) console.log('[heuristic]', heuristic);
+            for (const [start, end, original, category] of heuristic) {
+                const tokenId = this._store.getOrCreate(category, original);
+                _register(start, end, `【${category}${tokenId}】`);
             }
         }
 
