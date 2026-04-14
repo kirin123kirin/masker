@@ -122,8 +122,19 @@ export class Masker {
         }
 
         // ── 2. 人物・組織名 ──
-        // 2a. Transformers.js NER（利用可能な場合）
-        let nerDone = false;
+        // 2a. ヒューリスティック（最優先）
+        // 役職・敬称ルールは信頼度が高いため、NERより先に実行して範囲を確保する。
+        // NERが「田中課」を組織と誤認識しても、先に「田中」を人名として確保できる。
+        {
+            const heuristic = await findPersonsOrgsHeuristic(text);
+            if (heuristic.length > 0) console.log('[heuristic]', heuristic);
+            for (const [start, end, original, category] of heuristic) {
+                const tokenId = this._store.getOrCreate(category, original);
+                _register(start, end, `【${category}${tokenId}】`);
+            }
+        }
+
+        // 2b. Transformers.js NER（ヒューリスティックで拾えなかった固有名詞を補完）
         if (this._ner) {
             try {
                 const rawEntities = await this._ner.detect(text);
@@ -143,21 +154,8 @@ export class Masker {
                     const tokenId = this._store.getOrCreate(category, original);
                     _register(start, end, `【${category}${tokenId}】`);
                 }
-                nerDone = true;
             } catch (err) {
                 console.error('[NER error]', err);
-                // NER失敗 → ヒューリスティックにフォールバック
-            }
-        }
-
-        // 2b. ヒューリスティック（NER結果を補完、常に実行）
-        // NERが成功しても検出漏れを補うため常に実行。_register の重複チェックで二重マスクを防ぐ。
-        {
-            const heuristic = await findPersonsOrgsHeuristic(text);
-            if (heuristic.length > 0) console.log('[heuristic]', heuristic);
-            for (const [start, end, original, category] of heuristic) {
-                const tokenId = this._store.getOrCreate(category, original);
-                _register(start, end, `【${category}${tokenId}】`);
             }
         }
 

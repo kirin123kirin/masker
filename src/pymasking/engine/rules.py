@@ -83,7 +83,7 @@ RULES: list[tuple[str, re.Pattern, callable]] = [
     (
         "住所",
         re.compile(
-            r"[^\s\u3000。、\n]{1,6}(?:市|区|町|村)"
+            r"[^\s\u3000。、\n]{2,6}(?:市|区|町|村)"
             r"[^\s\u3000。、\n]{1,40}"
         ),
         lambda m: "【住所{token}】",
