@@ -25,6 +25,66 @@ const _RESTORE_ADDR_PAT = new RegExp(
     'g'
 );
 
+/**
+ * NER生トークン列を集約してエンティティ配列に正規化する。
+ *
+ * ONNX版Transformers.jsでは aggregation_strategy が効かず、以下の問題が発生する:
+ *   - フィールドが entity_group ではなく entity
+ *   - start / end が null
+ *   - 1文字ずつのトークンが返ってくる
+ *
+ * この関数で:
+ *   1. entity / entity_group どちらにも対応
+ *   2. B-/I- プレフィックスを除去
+ *   3. 同ラベルが連続するトークンを1エンティティに集約
+ *   4. text.indexOf() でオフセットを再計算
+ *
+ * すでに集約済み（entity_group + 数値オフセット）の場合はそのまま返す。
+ */
+function _aggregateNerEntities(rawEntities, text) {
+    if (!rawEntities || rawEntities.length === 0) return [];
+
+    // 集約済みかどうかを確認（entity_group があり start が数値ならそのまま返す）
+    if (rawEntities[0].entity_group != null && typeof rawEntities[0].start === 'number') {
+        return rawEntities;
+    }
+
+    const results = [];
+    let searchFrom = 0;
+    let i = 0;
+
+    while (i < rawEntities.length) {
+        const tok = rawEntities[i];
+        const rawLabel = tok.entity_group || tok.entity || '';
+        if (!rawLabel || rawLabel === 'O') { i++; continue; }
+        const label = rawLabel.replace(/^[BI]-/, '');
+
+        // 同じラベルが連続する間トークンを集約
+        const words = [tok.word];
+        let j = i + 1;
+        while (j < rawEntities.length) {
+            const next = rawEntities[j];
+            const nextRaw = next.entity_group || next.entity || '';
+            const nextLabel = nextRaw.replace(/^[BI]-/, '');
+            if (nextLabel === label) { words.push(next.word); j++; }
+            else break;
+        }
+
+        // SentencePiece の ▁ を除去して結合
+        const word = words.join('').replace(/▁/g, ' ').trim();
+
+        if (word.length >= 2) {
+            const pos = text.indexOf(word, searchFrom);
+            if (pos !== -1) {
+                results.push({ entity_group: label, word, start: pos, end: pos + word.length, score: tok.score });
+                searchFrom = pos + word.length;
+            }
+        }
+        i = j;
+    }
+    return results;
+}
+
 export class Masker {
     /**
      * @param {object|null} nerProxy - { detect(text): Promise<entities[]> } | null
@@ -66,10 +126,13 @@ export class Masker {
         let nerDone = false;
         if (this._ner) {
             try {
-                const entities = await this._ner.detect(text);
-                console.log('[NER raw]', JSON.stringify(entities));
-                for (const entity of entities) {
-                    const { entity_group, start, end } = entity;
+                const rawEntities = await this._ner.detect(text);
+                console.log('[NER raw]', JSON.stringify(rawEntities));
+                // ONNX版では entity_group の代わりに entity、start/end が null で
+                // 1文字ずつ返ってくるため、masker 側で集約・オフセット再計算を行う
+                const entities = _aggregateNerEntities(rawEntities, text);
+                console.log('[NER processed]', JSON.stringify(entities));
+                for (const { entity_group, start, end } of entities) {
                     let category;
                     if (entity_group === 'PER') category = '人物';
                     else if (entity_group === 'ORG' || entity_group === 'ORG-P' || entity_group === 'ORG-O') category = '組織';
