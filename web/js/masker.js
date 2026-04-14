@@ -67,6 +67,7 @@ export class Masker {
         if (this._ner) {
             try {
                 const entities = await this._ner.detect(text);
+                console.log('[NER raw]', JSON.stringify(entities));
                 for (const entity of entities) {
                     const { entity_group, start, end } = entity;
                     let category;
@@ -74,12 +75,14 @@ export class Masker {
                     else if (entity_group === 'ORG' || entity_group === 'ORG-P' || entity_group === 'ORG-O') category = '組織';
                     else continue;
                     const original = text.slice(start, end);
+                    console.log('[NER hit]', entity_group, start, end, JSON.stringify(original));
                     if (!original.trim()) continue;
                     const tokenId = this._store.getOrCreate(category, original);
                     _register(start, end, `【${category}${tokenId}】`);
                 }
                 nerDone = true;
-            } catch (_) {
+            } catch (err) {
+                console.error('[NER error]', err);
                 // NER失敗 → ヒューリスティックにフォールバック
             }
         }
