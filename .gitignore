@@ -12,6 +12,12 @@ dist/
 build/
 *.whl
 
+# PyInstaller ビルド成果物
+.build_tmp/
+pymasking.exe
+mask.exe
+unmask.exe
+
 # 仮想環境
 .venv/
 venv/
