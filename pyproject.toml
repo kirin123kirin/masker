@@ -63,6 +63,9 @@ Repository = "https://github.com/kirin123kirin/masker"
 mask   = "pymasking.cli:main"
 unmask = "pymasking.cli:main"
 
+[project.gui-scripts]
+pymasking = "pymasking.webapp_entry:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

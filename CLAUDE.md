@@ -14,8 +14,7 @@ masker/
 ├── src/pymasking/          # ── Python ライブラリ（pip install / PyPI）──
 │   ├── __init__.py
 │   ├── cli.py              # mask / unmask コマンド
-│   ├── entry_mask.py       # mask.exe → cli.main() ブリッジ
-│   ├── entry_unmask.py     # unmask.exe → cli.main() ブリッジ
+│   ├── webapp_entry.py     # pymasking.exe GUI エントリポイント
 │   ├── engine/
 │   │   ├── masker.py       # Masker クラス（メインエンジン）
 │   │   ├── date_detector.py
@@ -39,12 +38,8 @@ masker/
 ├── webapp/                 # ── スタンドアロン Web アプリ（Windows 配布）──
 │   ├── requirements.txt    # Web UI 依存パッケージ
 │   ├── server.py           # Flask サーバー
-│   ├── templates/
-│   │   └── index.html      # Web UI テンプレート
-│   └── exe/                # PyInstaller エントリポイント
-│       ├── web_launcher.py # pymasking.exe
-│       ├── mask_launcher.py# mask.exe
-│       └── unmask_launcher.py # unmask.exe
+│   └── templates/
+│       └── index.html      # Web UI テンプレート
 │
 ├── python/                 # Python embedded runtime（setup.bat が生成、git 管理外）
 ├── output/                 # 処理済みファイル出力先（git 管理外）
@@ -95,7 +90,7 @@ pytest tests/ -v
 ## Web UI 起動手順（Windows）
 
 ```
-setup.bat   # 初回のみ（Python ランタイム・ライブラリ・exe ビルド）
+setup.bat   # 初回のみ（Python ランタイム・ライブラリ・exe コピー）
 ```
 
 完了後、リポジトリルートに以下が生成されます:

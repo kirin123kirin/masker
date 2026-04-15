@@ -79,49 +79,18 @@ echo [4/5] NER モデル ^(GiNZA^) のダウンロード ^(約 100 MB^)...
 echo       GiNZA インストール完了
 
 :: ═══════════════════════════════════════════════════════════
-::  Step 5: 実行ファイルのビルド
+::  Step 5: 実行ファイルをルートにコピー
+::  pip が生成した Microsoft 署名済みスタブ (~100KB) を使用
+::  PyInstaller 不使用のため EDR に検知されません
 :: ═══════════════════════════════════════════════════════════
-echo [5/5] 実行ファイル ^(pymasking.exe / mask.exe / unmask.exe^) をビルド中...
-"%PYEXE%" -m pip install pyinstaller --no-warn-script-location -q
-
-set "WORK=%BASE%.build_tmp"
-if not exist "%WORK%" mkdir "%WORK%"
-
-echo       pymasking.exe...
-"%PYEXE%" -m PyInstaller ^
-    --onefile ^
-    --noconsole ^
-    --name pymasking ^
-    --distpath "%BASE%" ^
-    --workpath "%WORK%" ^
-    --specpath "%WORK%" ^
-    "%BASE%webapp\exe\web_launcher.py"
-if errorlevel 1 ( echo [ERROR] pymasking.exe のビルド失敗 & pause & exit /b 1 )
-
-echo       mask.exe...
-"%PYEXE%" -m PyInstaller ^
-    --onefile ^
-    --console ^
-    --name mask ^
-    --distpath "%BASE%" ^
-    --workpath "%WORK%" ^
-    --specpath "%WORK%" ^
-    "%BASE%webapp\exe\mask_launcher.py"
-if errorlevel 1 ( echo [ERROR] mask.exe のビルド失敗 & pause & exit /b 1 )
-
-echo       unmask.exe...
-"%PYEXE%" -m PyInstaller ^
-    --onefile ^
-    --console ^
-    --name unmask ^
-    --distpath "%BASE%" ^
-    --workpath "%WORK%" ^
-    --specpath "%WORK%" ^
-    "%BASE%webapp\exe\unmask_launcher.py"
-if errorlevel 1 ( echo [ERROR] unmask.exe のビルド失敗 & pause & exit /b 1 )
-
-if exist "%WORK%" rd /s /q "%WORK%"
-echo       ビルド完了
+echo [5/5] 実行ファイルをルートにコピー中...
+copy /Y "%PYDIR%\Scripts\pymasking.exe" "%BASE%pymasking.exe" > nul
+if errorlevel 1 ( echo [ERROR] pymasking.exe が見つかりません & pause & exit /b 1 )
+copy /Y "%PYDIR%\Scripts\mask.exe"     "%BASE%mask.exe"     > nul
+if errorlevel 1 ( echo [ERROR] mask.exe が見つかりません & pause & exit /b 1 )
+copy /Y "%PYDIR%\Scripts\unmask.exe"   "%BASE%unmask.exe"   > nul
+if errorlevel 1 ( echo [ERROR] unmask.exe が見つかりません & pause & exit /b 1 )
+echo       完了 → pymasking.exe / mask.exe / unmask.exe
 
 echo.
 echo ============================================================

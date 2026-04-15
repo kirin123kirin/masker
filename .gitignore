@@ -12,8 +12,7 @@ dist/
 build/
 *.whl
 
-# PyInstaller ビルド成果物
-.build_tmp/
+# pip コピー成果物（setup.bat が生成）
 pymasking.exe
 mask.exe
 unmask.exe
