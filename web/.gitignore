@@ -1,4 +1,8 @@
-models/
-!models/.gitkeep
-lib/transformers.min.js
-lib/jszip.min.js
+# Python embedded runtime (setup.bat が生成)
+runtime/
+
+# 処理済み出力ファイル
+output/
+
+# easyocr モデルキャッシュ
+.EasyOCR/

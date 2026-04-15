@@ -1,0 +1,6 @@
+flask>=3.0
+pillow>=10.0
+easyocr>=1.7
+pymasking>=1.4
+ginza>=5.2
+ja-ginza>=5.2

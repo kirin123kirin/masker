@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PII Masker</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: #f0f2f5; color: #1a1a1a; min-height: 100vh; }
+
+header { background: #1e3a5f; color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+header h1 { font-size: 1.2rem; font-weight: 600; letter-spacing: .02em; }
+.badge { font-size: .72rem; padding: 2px 8px; border-radius: 99px; font-weight: 500; }
+.badge-ok  { background: #22c55e; }
+.badge-warn{ background: #f59e0b; }
+.badge-off { background: #6b7280; }
+
+main { max-width: 860px; margin: 32px auto; padding: 0 16px; }
+
+.card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); margin-bottom: 20px; overflow: hidden; }
+.card-title { font-size: .8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #6b7280; padding: 14px 20px 0; }
+
+/* ── ドロップゾーン ── */
+#drop-zone {
+  border: 2px dashed #cbd5e1; border-radius: 10px; margin: 12px 20px 20px;
+  padding: 40px 20px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+#drop-zone.over { border-color: #3b82f6; background: #eff6ff; }
+#drop-zone p { color: #64748b; font-size: .95rem; line-height: 1.8; }
+#drop-zone strong { color: #1e3a5f; }
+#file-input { display: none; }
+.ext-list { font-size: .75rem; color: #94a3b8; margin-top: 8px; }
+
+/* ── クリップボード ── */
+#clipboard-zone {
+  margin: 0 20px 20px; border: 2px dashed #cbd5e1; border-radius: 10px;
+  padding: 28px 20px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+#clipboard-zone.over { border-color: #8b5cf6; background: #f5f3ff; }
+#clipboard-zone p { color: #64748b; font-size: .9rem; }
+#clipboard-canvas { display: none; }
+
+/* ── ステータス一覧 ── */
+#status-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+.item { border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; }
+.item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.item-icon { font-size: 1.3rem; }
+.item-name { font-weight: 600; font-size: .9rem; flex: 1; word-break: break-all; }
+.item-status { font-size: .78rem; color: #64748b; }
+.item-error { color: #dc2626; font-size: .82rem; margin-top: 4px; }
+.btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.btn { border: none; border-radius: 6px; padding: 6px 14px; font-size: .82rem; cursor: pointer; font-weight: 500; }
+.btn-dl   { background: #1e3a5f; color: #fff; }
+.btn-dl:hover { background: #2d5282; }
+.btn-tsv  { background: #e2e8f0; color: #374151; }
+.btn-tsv:hover { background: #cbd5e1; }
+
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔒 PII Masker</h1>
+  <span class="badge {{ 'badge-ok' if 'GiNZA' in ner_mode else 'badge-warn' }}"
+        title="NER 検出エンジン">{{ ner_mode }}</span>
+  {% if ocr_available %}
+  <span class="badge badge-ok" title="画像 OCR">OCR 有効</span>
+  {% else %}
+  <span class="badge badge-off" title="easyocr 未インストール">OCR 無効</span>
+  {% endif %}
+</header>
+
+<main>
+
+  <!-- ファイルドロップ -->
+  <div class="card">
+    <div class="card-title">ファイルをドロップ / クリックして選択</div>
+    <div id="drop-zone">
+      <p>📂 <strong>ドラッグ&amp;ドロップ</strong> またはクリックして選択</p>
+      <div class="ext-list">{{ supported_exts | join('  ') }}</div>
+    </div>
+    <input id="file-input" type="file" multiple
+           accept="{{ supported_exts | join(',') }}">
+  </div>
+
+  <!-- クリップボード -->
+  <div class="card">
+    <div class="card-title">クリップボードから貼り付け</div>
+    <div id="clipboard-zone">
+      <p>🖼️ ここをクリックして <kbd>Ctrl+V</kbd> で画像を貼り付け</p>
+      {% if not ocr_available %}
+      <p style="color:#f59e0b;font-size:.8rem;margin-top:6px;">⚠️ OCR 無効 — setup.bat を再実行して easyocr をインストールしてください</p>
+      {% endif %}
+    </div>
+    <canvas id="clipboard-canvas"></canvas>
+  </div>
+
+  <!-- 結果 -->
+  <div class="card" id="results-card" style="display:none;">
+    <div class="card-title">処理結果</div>
+    <div id="status-list"></div>
+  </div>
+
+</main>
+
+<script>
+const dropZone    = document.getElementById('drop-zone');
+const fileInput   = document.getElementById('file-input');
+const clipZone    = document.getElementById('clipboard-zone');
+const resultCard  = document.getElementById('results-card');
+const statusList  = document.getElementById('status-list');
+
+// ── ドラッグ&ドロップ ──────────────────────────────────────────────────
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('over');
+  processFiles([...e.dataTransfer.files]);
+});
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { processFiles([...e.target.files]); fileInput.value = ''; });
+
+// ── クリップボード貼り付け ─────────────────────────────────────────────
+clipZone.addEventListener('click', () => clipZone.focus());
+clipZone.setAttribute('tabindex', '0');
+document.addEventListener('paste', async e => {
+  const items = [...(e.clipboardData?.items || [])];
+  const imgItem = items.find(i => i.type.startsWith('image/'));
+  if (!imgItem) return;
+
+  const blob   = imgItem.getAsFile();
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    const dataUrl = ev.target.result;
+    const item = addItem('📋 クリップボード画像');
+    try {
+      const res = await fetch('/mask-clipboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: dataUrl }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      finishItem(item, json);
+    } catch (err) {
+      errorItem(item, err.message);
+    }
+  };
+  reader.readAsDataURL(blob);
+});
+
+// ── ファイル処理 ──────────────────────────────────────────────────────
+async function processFiles(files) {
+  for (const file of files) {
+    const item = addItem(file.name);
+    const fd   = new FormData();
+    fd.append('file', file);
+    try {
+      const res  = await fetch('/mask', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      finishItem(item, json);
+    } catch (err) {
+      errorItem(item, err.message);
+    }
+  }
+}
+
+// ── UI ────────────────────────────────────────────────────────────────
+function addItem(name) {
+  resultCard.style.display = '';
+  const el = document.createElement('div');
+  el.className = 'item';
+  el.innerHTML = `
+    <div class="item-header">
+      <span class="item-icon">⏳</span>
+      <span class="item-name">${esc(name)}</span>
+      <span class="item-status"><span class="spinner"></span> 処理中...</span>
+    </div>`;
+  statusList.prepend(el);
+  return el;
+}
+
+function finishItem(el, json) {
+  el.querySelector('.item-icon').textContent   = '✅';
+  el.querySelector('.item-status').textContent = '完了';
+  const row = document.createElement('div');
+  row.className = 'btn-row';
+  row.appendChild(dlBtn(json.result,      json.result_name, '⬇ マスク済みファイル', 'btn-dl'));
+  row.appendChild(dlBtn(json.tsv,         json.tsv_name,    '⬇ マッピング TSV',     'btn-tsv'));
+  el.appendChild(row);
+}
+
+function errorItem(el, msg) {
+  el.querySelector('.item-icon').textContent   = '❌';
+  el.querySelector('.item-status').textContent = 'エラー';
+  const p = document.createElement('div');
+  p.className = 'item-error';
+  p.textContent = msg;
+  el.appendChild(p);
+}
+
+function dlBtn(b64, filename, label, cls) {
+  const btn = document.createElement('button');
+  btn.className = `btn ${cls}`;
+  btn.textContent = label;
+  btn.onclick = () => {
+    const a = document.createElement('a');
+    a.href     = 'data:application/octet-stream;base64,' + b64;
+    a.download = filename;
+    a.click();
+  };
+  return btn;
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
