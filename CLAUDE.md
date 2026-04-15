@@ -6,20 +6,12 @@
 
 ```
 masker/
-├── setup.bat               # セットアップ + 実行ファイルビルド（Windows）
-├── requirements.txt        # Web UI 依存パッケージ一覧
+├── setup.bat               # セットアップ + 実行ファイルビルド（Windows、まずここを実行）
 ├── pyproject.toml
 ├── MANIFEST.in
 ├── README.md
-├── app/                    # Flask Web UI（PyPI には含めない）
-│   ├── server.py           # Flask サーバー
-│   └── templates/
-│       └── index.html      # Web UI テンプレート
-├── launchers/              # exe ランチャースクリプト（PyInstaller 用）
-│   ├── web_launcher.py     # pymasking.exe エントリポイント
-│   ├── mask_launcher.py    # mask.exe エントリポイント
-│   └── unmask_launcher.py  # unmask.exe エントリポイント
-├── src/pymasking/          # Python ライブラリ本体
+│
+├── src/pymasking/          # ── Python ライブラリ（pip install / PyPI）──
 │   ├── __init__.py
 │   ├── cli.py              # mask / unmask コマンド
 │   ├── entry_mask.py       # mask.exe → cli.main() ブリッジ
@@ -40,8 +32,20 @@ masker/
 │   │   └── handler_xlsx.py
 │   └── dict/
 │       └── custom_dict.txt # ユーザー定義固有名詞辞書
-├── tests/
+│
+├── tests/                  # ── テスト ──
 │   └── test_masker.py
+│
+├── webapp/                 # ── スタンドアロン Web アプリ（Windows 配布）──
+│   ├── requirements.txt    # Web UI 依存パッケージ
+│   ├── server.py           # Flask サーバー
+│   ├── templates/
+│   │   └── index.html      # Web UI テンプレート
+│   └── exe/                # PyInstaller エントリポイント
+│       ├── web_launcher.py # pymasking.exe
+│       ├── mask_launcher.py# mask.exe
+│       └── unmask_launcher.py # unmask.exe
+│
 ├── python/                 # Python embedded runtime（setup.bat が生成、git 管理外）
 ├── output/                 # 処理済みファイル出力先（git 管理外）
 └── .EasyOCR/               # easyocr モデルキャッシュ（git 管理外）
@@ -84,7 +88,7 @@ pytest tests/ -v
 ## PyPI パッケージ
 
 - パッケージ名: `pymasking`
-- `app/`・`launchers/`・`tests/` フォルダは PyPI に含めない（MANIFEST.in で `prune`）
+- `webapp/`・`tests/` フォルダは PyPI に含めない（MANIFEST.in で `prune`）
 - ビルド: `python -m build`
 - 公開: `twine upload dist/*`
 

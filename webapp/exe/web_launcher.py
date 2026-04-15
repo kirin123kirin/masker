@@ -14,14 +14,14 @@ def _base_dir() -> str:
     if getattr(sys, 'frozen', False):
         # PyInstaller --onefile: sys.executable が .exe のパス
         return os.path.dirname(os.path.abspath(sys.executable))
-    # 開発実行時: launchers/ の一つ上がリポジトリルート
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # 開発実行時: webapp/exe/ の二つ上がリポジトリルート
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main() -> None:
     base    = _base_dir()
     runtime = os.path.join(base, "python", "python.exe")
-    server  = os.path.join(base, "app", "server.py")
+    server  = os.path.join(base, "webapp", "server.py")
 
     if not os.path.exists(runtime):
         ctypes.windll.user32.MessageBoxW(

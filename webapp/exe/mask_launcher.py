@@ -1,11 +1,11 @@
-"""unmask.exe  –  PII マスク復元 CLI
+"""mask.exe  –  PII マスキング CLI
 
-python\\python.exe を使用して pymasking の復元 CLI を実行します。
+python\\python.exe を使用して pymasking のマスキング CLI を実行します。
 
 使用例:
-  unmask 議事録_masked.txt
-  unmask *_masked.txt --mapping shared_mapping.tsv
-  unmask                  # クリップボード入力
+  mask 議事録.docx
+  mask *.txt --mapping shared_mapping.tsv
+  mask                    # クリップボード入力
 """
 import os
 import subprocess
@@ -15,7 +15,8 @@ import sys
 def _base_dir() -> str:
     if getattr(sys, 'frozen', False):
         return os.path.dirname(os.path.abspath(sys.executable))
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # 開発実行時: webapp/exe/ の二つ上がリポジトリルート
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def main() -> None:
@@ -30,7 +31,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    entry = os.path.join(base, "src", "pymasking", "entry_unmask.py")
+    entry = os.path.join(base, "src", "pymasking", "entry_mask.py")
     env   = os.environ.copy()
     src   = os.path.join(base, "src")
     if os.path.exists(src):

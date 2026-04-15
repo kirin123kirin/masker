@@ -95,7 +95,7 @@ echo       pymasking.exe...
     --distpath "%BASE%" ^
     --workpath "%WORK%" ^
     --specpath "%WORK%" ^
-    "%BASE%launchers\web_launcher.py"
+    "%BASE%webapp\exe\web_launcher.py"
 if errorlevel 1 ( echo [ERROR] pymasking.exe のビルド失敗 & pause & exit /b 1 )
 
 echo       mask.exe...
@@ -106,7 +106,7 @@ echo       mask.exe...
     --distpath "%BASE%" ^
     --workpath "%WORK%" ^
     --specpath "%WORK%" ^
-    "%BASE%launchers\mask_launcher.py"
+    "%BASE%webapp\exe\mask_launcher.py"
 if errorlevel 1 ( echo [ERROR] mask.exe のビルド失敗 & pause & exit /b 1 )
 
 echo       unmask.exe...
@@ -117,7 +117,7 @@ echo       unmask.exe...
     --distpath "%BASE%" ^
     --workpath "%WORK%" ^
     --specpath "%WORK%" ^
-    "%BASE%launchers\unmask_launcher.py"
+    "%BASE%webapp\exe\unmask_launcher.py"
 if errorlevel 1 ( echo [ERROR] unmask.exe のビルド失敗 & pause & exit /b 1 )
 
 if exist "%WORK%" rd /s /q "%WORK%"
