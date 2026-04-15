@@ -8,7 +8,7 @@ echo ============================================================
 echo.
 
 set "BASE=%~dp0"
-set "PYDIR=%BASE%runtime"
+set "PYDIR=%BASE%python"
 set "PYEXE=%PYDIR%\python.exe"
 set "PYVER=3.12.9"
 set "PYZIP=python-%PYVER%-embed-amd64.zip"
@@ -17,7 +17,7 @@ set "PYURL=https://www.python.org/ftp/python/%PYVER%/%PYZIP%"
 :: ═══════════════════════════════════════════════════════════
 ::  Step 1: Python 3.12 embedded runtime
 :: ═══════════════════════════════════════════════════════════
-echo [1/4] Python %PYVER% embedded runtime...
+echo [1/5] Python %PYVER% embedded runtime...
 if not exist "%PYDIR%" mkdir "%PYDIR%"
 
 if exist "%PYEXE%" (
@@ -43,7 +43,7 @@ if exist "%PTH%" (
 :: ═══════════════════════════════════════════════════════════
 ::  Step 2: pip
 :: ═══════════════════════════════════════════════════════════
-echo [2/4] pip のセットアップ...
+echo [2/5] pip のセットアップ...
 "%PYEXE%" -m pip --version > nul 2>&1
 if errorlevel 1 (
     echo       get-pip.py をダウンロード中...
@@ -59,11 +59,11 @@ if errorlevel 1 (
 :: ═══════════════════════════════════════════════════════════
 ::  Step 3: Python ライブラリ
 :: ═══════════════════════════════════════════════════════════
-echo [3/4] ライブラリのインストール ^(flask / pillow / pdfplumber / easyocr ...^)...
+echo [3/5] ライブラリのインストール ^(flask / pillow / pdfplumber / easyocr ...^)...
 
 :: pymasking: リポジトリ内 src/ があればローカルから、なければ PyPI から
-if exist "%BASE%..\src\pymasking\__init__.py" (
-    "%PYEXE%" -m pip install -e "%BASE%.." --no-warn-script-location -q
+if exist "%BASE%src\pymasking\__init__.py" (
+    "%PYEXE%" -m pip install -e "%BASE%" --no-warn-script-location -q
 ) else (
     "%PYEXE%" -m pip install pymasking --no-warn-script-location -q
 )
@@ -82,8 +82,46 @@ echo       GiNZA インストール完了
 ::  Step 5: 実行ファイルのビルド
 :: ═══════════════════════════════════════════════════════════
 echo [5/5] 実行ファイル ^(pymasking.exe / mask.exe / unmask.exe^) をビルド中...
-call "%BASE%..\build.bat" nopause
-if errorlevel 1 ( echo [WARN] ビルドに失敗しました。build.bat を手動で実行してください。 )
+"%PYEXE%" -m pip install pyinstaller --no-warn-script-location -q
+
+set "WORK=%BASE%.build_tmp"
+if not exist "%WORK%" mkdir "%WORK%"
+
+echo       pymasking.exe...
+"%PYEXE%" -m PyInstaller ^
+    --onefile ^
+    --noconsole ^
+    --name pymasking ^
+    --distpath "%BASE%" ^
+    --workpath "%WORK%" ^
+    --specpath "%WORK%" ^
+    "%BASE%launchers\web_launcher.py"
+if errorlevel 1 ( echo [ERROR] pymasking.exe のビルド失敗 & pause & exit /b 1 )
+
+echo       mask.exe...
+"%PYEXE%" -m PyInstaller ^
+    --onefile ^
+    --console ^
+    --name mask ^
+    --distpath "%BASE%" ^
+    --workpath "%WORK%" ^
+    --specpath "%WORK%" ^
+    "%BASE%launchers\mask_launcher.py"
+if errorlevel 1 ( echo [ERROR] mask.exe のビルド失敗 & pause & exit /b 1 )
+
+echo       unmask.exe...
+"%PYEXE%" -m PyInstaller ^
+    --onefile ^
+    --console ^
+    --name unmask ^
+    --distpath "%BASE%" ^
+    --workpath "%WORK%" ^
+    --specpath "%WORK%" ^
+    "%BASE%launchers\unmask_launcher.py"
+if errorlevel 1 ( echo [ERROR] unmask.exe のビルド失敗 & pause & exit /b 1 )
+
+if exist "%WORK%" rd /s /q "%WORK%"
+echo       ビルド完了
 
 echo.
 echo ============================================================

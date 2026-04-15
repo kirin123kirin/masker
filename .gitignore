@@ -18,6 +18,15 @@ pymasking.exe
 mask.exe
 unmask.exe
 
+# Python embedded runtime (setup.bat が生成)
+python/
+
+# 処理済み出力ファイル
+output/
+
+# easyocr モデルキャッシュ
+.EasyOCR/
+
 # 仮想環境
 .venv/
 venv/

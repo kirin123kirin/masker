@@ -1,6 +1,6 @@
 """pymasking.exe  –  PII Masker Web UI を起動します
 
-web\\runtime\\python.exe を使用してローカル Flask サーバーを起動し、
+python\\python.exe を使用してローカル Flask サーバーを起動し、
 ブラウザで自動的に開きます。
 """
 import ctypes
@@ -20,14 +20,14 @@ def _base_dir() -> str:
 
 def main() -> None:
     base    = _base_dir()
-    runtime = os.path.join(base, "web", "runtime", "python.exe")
-    server  = os.path.join(base, "web", "app", "server.py")
+    runtime = os.path.join(base, "python", "python.exe")
+    server  = os.path.join(base, "app", "server.py")
 
     if not os.path.exists(runtime):
         ctypes.windll.user32.MessageBoxW(
             0,
             "セットアップが未完了です。\n\n"
-            "  web\\setup.bat  を実行してから\n"
+            "  setup.bat  を実行してから\n"
             "再度起動してください。",
             "PII Masker – セットアップ必要",
             0x10,   # MB_ICONERROR

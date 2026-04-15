@@ -17,7 +17,7 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request
 
 # ── pymasking をロード（リポジトリ内 src/ → インストール済み の順）──
-_SRC = Path(__file__).parent.parent.parent / "src"
+_SRC = Path(__file__).parent.parent / "src"
 if _SRC.exists():
     sys.path.insert(0, str(_SRC))
 

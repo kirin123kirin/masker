@@ -6,8 +6,10 @@ include pyproject.toml
 # カスタム辞書テンプレート
 recursive-include src/pymasking/dict *.txt
 
-# 除外
-prune web
+# 除外（PyPI パッケージには含めない）
+prune app
+prune launchers
+prune tests
 global-exclude __pycache__
 global-exclude *.py[cod]
 global-exclude *.so

@@ -1,6 +1,6 @@
 """mask.exe  –  PII マスキング CLI
 
-web\\runtime\\python.exe を使用して pymasking のマスキング CLI を実行します。
+python\\python.exe を使用して pymasking のマスキング CLI を実行します。
 
 使用例:
   mask 議事録.docx
@@ -20,12 +20,12 @@ def _base_dir() -> str:
 
 def main() -> None:
     base    = _base_dir()
-    runtime = os.path.join(base, "web", "runtime", "python.exe")
+    runtime = os.path.join(base, "python", "python.exe")
 
     if not os.path.exists(runtime):
         print(
             "[ERROR] セットアップが未完了です。"
-            " web\\setup.bat を実行してください。",
+            " setup.bat を実行してください。",
             file=sys.stderr,
         )
         sys.exit(1)

@@ -6,9 +6,24 @@
 
 ```
 masker/
+├── setup.bat               # セットアップ + 実行ファイルビルド（Windows）
+├── requirements.txt        # Web UI 依存パッケージ一覧
+├── pyproject.toml
+├── MANIFEST.in
+├── README.md
+├── app/                    # Flask Web UI（PyPI には含めない）
+│   ├── server.py           # Flask サーバー
+│   └── templates/
+│       └── index.html      # Web UI テンプレート
+├── launchers/              # exe ランチャースクリプト（PyInstaller 用）
+│   ├── web_launcher.py     # pymasking.exe エントリポイント
+│   ├── mask_launcher.py    # mask.exe エントリポイント
+│   └── unmask_launcher.py  # unmask.exe エントリポイント
 ├── src/pymasking/          # Python ライブラリ本体
 │   ├── __init__.py
 │   ├── cli.py              # mask / unmask コマンド
+│   ├── entry_mask.py       # mask.exe → cli.main() ブリッジ
+│   ├── entry_unmask.py     # unmask.exe → cli.main() ブリッジ
 │   ├── engine/
 │   │   ├── masker.py       # Masker クラス（メインエンジン）
 │   │   ├── date_detector.py
@@ -25,17 +40,11 @@ masker/
 │   │   └── handler_xlsx.py
 │   └── dict/
 │       └── custom_dict.txt # ユーザー定義固有名詞辞書
-├── web/                    # ブラウザ版（PyPI には含めない）
-│   ├── index.html
-│   ├── js/
-│   ├── dict/
-│   ├── start.bat
-│   └── download_model.py
 ├── tests/
 │   └── test_masker.py
-├── pyproject.toml
-├── MANIFEST.in
-└── README.md
+├── python/                 # Python embedded runtime（setup.bat が生成、git 管理外）
+├── output/                 # 処理済みファイル出力先（git 管理外）
+└── .EasyOCR/               # easyocr モデルキャッシュ（git 管理外）
 ```
 
 ## Git 運用ルール
@@ -75,27 +84,27 @@ pytest tests/ -v
 ## PyPI パッケージ
 
 - パッケージ名: `pymasking`
-- `web/` フォルダは PyPI に含めない（MANIFEST.in で `prune web`）
+- `app/`・`launchers/`・`tests/` フォルダは PyPI に含めない（MANIFEST.in で `prune`）
 - ビルド: `python -m build`
 - 公開: `twine upload dist/*`
 
-## ブラウザ版
+## Web UI 起動手順（Windows）
 
-`web/` フォルダは独立した静的ウェブアプリ。Transformers.js（ONNX）でオフライン NER を実現。
-
-起動手順:
-
-```bash
-cd web
-python download_model.py   # 初回のみ（モデルダウンロード・ONNX 変換）
-start.bat                  # Windows
+```
+setup.bat   # 初回のみ（Python ランタイム・ライブラリ・exe ビルド）
 ```
 
-モデルは `web/models/tsmatz/xlm-roberta-ner-japanese/onnx/model_quantized.onnx` に配置。
+完了後、リポジトリルートに以下が生成されます:
+
+| ファイル | 用途 |
+|---|---|
+| `pymasking.exe` | ダブルクリックで Web UI を起動 |
+| `mask.exe` | コマンドラインからマスキング |
+| `unmask.exe` | コマンドラインから復元 |
 
 ## カスタム辞書
 
-`src/pymasking/dict/custom_dict.txt`（Python ライブラリ用）および `web/dict/custom_dict.txt`（ブラウザ版用）に以下の書式で追記:
+`src/pymasking/dict/custom_dict.txt` に以下の書式で追記:
 
 ```
 人物,田中太郎
