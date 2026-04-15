@@ -17,7 +17,21 @@ header h1 { font-size: 1.2rem; font-weight: 600; letter-spacing: .02em; }
 
 main { max-width: 860px; margin: 32px auto; padding: 0 16px; }
 
-.card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); margin-bottom: 20px; overflow: hidden; }
+/* ── タブ ── */
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+.tab-btn {
+  padding: 9px 22px; border: none; border-radius: 8px 8px 0 0;
+  font-size: .9rem; font-weight: 600; cursor: pointer;
+  background: #d1d5db; color: #4b5563; transition: background .15s, color .15s;
+}
+.tab-btn.active { background: #1e3a5f; color: #fff; }
+.tab-btn:not(.active):hover { background: #9ca3af; color: #fff; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.card { background: #fff; border-radius: 0 12px 12px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); margin-bottom: 20px; overflow: hidden; }
+.card-plain { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); margin-bottom: 20px; overflow: hidden; }
 .card-title { font-size: .8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #6b7280; padding: 14px 20px 0; }
 
 /* ── ドロップゾーン ── */
@@ -42,8 +56,38 @@ main { max-width: 860px; margin: 32px auto; padding: 0 16px; }
 #clipboard-zone p { color: #64748b; font-size: .9rem; }
 #clipboard-canvas { display: none; }
 
+/* ── 復元UI ── */
+.unmask-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin: 12px 20px 16px;
+}
+@media (max-width: 600px) { .unmask-grid { grid-template-columns: 1fr; } }
+
+.upload-area {
+  border: 2px dashed #cbd5e1; border-radius: 10px;
+  padding: 28px 16px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.upload-area.over { border-color: #3b82f6; background: #eff6ff; }
+.upload-area.has-file { border-color: #22c55e; background: #f0fdf4; }
+.upload-area p { color: #64748b; font-size: .88rem; line-height: 1.7; }
+.upload-area strong { color: #1e3a5f; }
+.upload-area .file-chosen { font-size: .78rem; color: #15803d; font-weight: 600; margin-top: 6px; word-break: break-all; }
+.upload-area input[type=file] { display: none; }
+
+.unmask-actions { margin: 0 20px 20px; display: flex; align-items: center; gap: 12px; }
+#unmask-btn {
+  padding: 9px 24px; background: #1e3a5f; color: #fff; border: none;
+  border-radius: 8px; font-size: .9rem; font-weight: 600; cursor: pointer;
+  transition: background .15s;
+}
+#unmask-btn:hover { background: #2d5282; }
+#unmask-btn:disabled { background: #9ca3af; cursor: default; }
+#unmask-status { font-size: .85rem; color: #64748b; }
+
 /* ── ステータス一覧 ── */
-#status-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+#status-list, #unmask-result { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 12px; }
 
 .item { border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; }
 .item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
@@ -77,45 +121,105 @@ main { max-width: 860px; margin: 32px auto; padding: 0 16px; }
 
 <main>
 
-  <!-- ファイルドロップ -->
-  <div class="card">
-    <div class="card-title">ファイルをドロップ / クリックして選択</div>
-    <div id="drop-zone">
-      <p>📂 <strong>ドラッグ&amp;ドロップ</strong> またはクリックして選択</p>
-      <div class="ext-list">{{ supported_exts | join('  ') }}</div>
-    </div>
-    <input id="file-input" type="file" multiple
-           accept="{{ supported_exts | join(',') }}">
+  <!-- タブ切り替え -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="mask">🔒 マスク</button>
+    <button class="tab-btn" data-tab="unmask">🔓 復元</button>
   </div>
 
-  <!-- クリップボード -->
-  <div class="card">
-    <div class="card-title">クリップボードから貼り付け</div>
-    <div id="clipboard-zone">
-      <p>🖼️ ここをクリックして <kbd>Ctrl+V</kbd> で画像を貼り付け</p>
-      {% if not ocr_available %}
-      <p style="color:#f59e0b;font-size:.8rem;margin-top:6px;">⚠️ OCR 無効 — setup.bat を再実行して easyocr をインストールしてください</p>
-      {% endif %}
-    </div>
-    <canvas id="clipboard-canvas"></canvas>
-  </div>
+  <!-- ── マスク タブ ── -->
+  <div id="tab-mask" class="tab-panel active">
 
-  <!-- 結果 -->
-  <div class="card" id="results-card" style="display:none;">
-    <div class="card-title">処理結果</div>
-    <div id="status-list"></div>
-  </div>
+    <!-- ファイルドロップ -->
+    <div class="card">
+      <div class="card-title">ファイルをドロップ / クリックして選択</div>
+      <div id="drop-zone">
+        <p>📂 <strong>ドラッグ&amp;ドロップ</strong> またはクリックして選択</p>
+        <div class="ext-list">{{ supported_exts | join('  ') }}</div>
+      </div>
+      <input id="file-input" type="file" multiple
+             accept="{{ supported_exts | join(',') }}">
+    </div>
+
+    <!-- クリップボード -->
+    <div class="card">
+      <div class="card-title">クリップボードから貼り付け</div>
+      <div id="clipboard-zone">
+        <p>🖼️ ここをクリックして <kbd>Ctrl+V</kbd> で画像を貼り付け</p>
+        {% if not ocr_available %}
+        <p style="color:#f59e0b;font-size:.8rem;margin-top:6px;">⚠️ OCR 無効 — setup.bat を再実行して easyocr をインストールしてください</p>
+        {% endif %}
+      </div>
+      <canvas id="clipboard-canvas"></canvas>
+    </div>
+
+    <!-- マスク結果 -->
+    <div class="card-plain" id="results-card" style="display:none;">
+      <div class="card-title">処理結果</div>
+      <div id="status-list"></div>
+    </div>
+
+  </div><!-- /tab-mask -->
+
+  <!-- ── 復元 タブ ── -->
+  <div id="tab-unmask" class="tab-panel">
+
+    <div class="card">
+      <div class="card-title">マスク済みファイルと マッピング TSV を選択</div>
+
+      <div class="unmask-grid">
+        <!-- マスク済みファイル -->
+        <div class="upload-area" id="masked-area">
+          <p>📄 <strong>マスク済みファイル</strong></p>
+          <p>{{ restore_exts | join('  ') }}</p>
+          <div class="file-chosen" id="masked-name">未選択</div>
+          <input type="file" id="masked-input"
+                 accept="{{ restore_exts | join(',') }}">
+        </div>
+
+        <!-- マッピング TSV -->
+        <div class="upload-area" id="tsv-area">
+          <p>📋 <strong>マッピング TSV</strong></p>
+          <p>*_mapping.tsv</p>
+          <div class="file-chosen" id="tsv-name">未選択</div>
+          <input type="file" id="tsv-input" accept=".tsv">
+        </div>
+      </div>
+
+      <div class="unmask-actions">
+        <button id="unmask-btn" disabled>🔓 復元する</button>
+        <span id="unmask-status"></span>
+      </div>
+    </div>
+
+    <!-- 復元結果 -->
+    <div class="card-plain" id="unmask-results-card" style="display:none;">
+      <div class="card-title">復元結果</div>
+      <div id="unmask-result"></div>
+    </div>
+
+  </div><!-- /tab-unmask -->
 
 </main>
 
 <script>
-const dropZone    = document.getElementById('drop-zone');
-const fileInput   = document.getElementById('file-input');
-const clipZone    = document.getElementById('clipboard-zone');
-const resultCard  = document.getElementById('results-card');
-const statusList  = document.getElementById('status-list');
+// ── タブ切り替え ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
 
-// ── ドラッグ&ドロップ ──────────────────────────────────────────────────
+// ── マスク タブ ──────────────────────────────────────────────────────────────
+const dropZone   = document.getElementById('drop-zone');
+const fileInput  = document.getElementById('file-input');
+const clipZone   = document.getElementById('clipboard-zone');
+const resultCard = document.getElementById('results-card');
+const statusList = document.getElementById('status-list');
+
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
 dropZone.addEventListener('drop', e => {
@@ -125,11 +229,11 @@ dropZone.addEventListener('drop', e => {
 dropZone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => { processFiles([...e.target.files]); fileInput.value = ''; });
 
-// ── クリップボード貼り付け ─────────────────────────────────────────────
+// クリップボード貼り付け
 clipZone.addEventListener('click', () => clipZone.focus());
 clipZone.setAttribute('tabindex', '0');
 document.addEventListener('paste', async e => {
-  const items = [...(e.clipboardData?.items || [])];
+  const items   = [...(e.clipboardData?.items || [])];
   const imgItem = items.find(i => i.type.startsWith('image/'));
   if (!imgItem) return;
 
@@ -139,7 +243,7 @@ document.addEventListener('paste', async e => {
     const dataUrl = ev.target.result;
     const item = addItem('📋 クリップボード画像');
     try {
-      const res = await fetch('/mask-clipboard', {
+      const res  = await fetch('/mask-clipboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: dataUrl }),
@@ -154,7 +258,6 @@ document.addEventListener('paste', async e => {
   reader.readAsDataURL(blob);
 });
 
-// ── ファイル処理 ──────────────────────────────────────────────────────
 async function processFiles(files) {
   for (const file of files) {
     const item = addItem(file.name);
@@ -171,7 +274,6 @@ async function processFiles(files) {
   }
 }
 
-// ── UI ────────────────────────────────────────────────────────────────
 function addItem(name) {
   resultCard.style.display = '';
   const el = document.createElement('div');
@@ -191,8 +293,8 @@ function finishItem(el, json) {
   el.querySelector('.item-status').textContent = '完了';
   const row = document.createElement('div');
   row.className = 'btn-row';
-  row.appendChild(dlBtn(json.result,      json.result_name, '⬇ マスク済みファイル', 'btn-dl'));
-  row.appendChild(dlBtn(json.tsv,         json.tsv_name,    '⬇ マッピング TSV',     'btn-tsv'));
+  row.appendChild(dlBtn(json.result,  json.result_name, '⬇ マスク済みファイル', 'btn-dl'));
+  row.appendChild(dlBtn(json.tsv,     json.tsv_name,    '⬇ マッピング TSV',    'btn-tsv'));
   el.appendChild(row);
 }
 
@@ -205,6 +307,87 @@ function errorItem(el, msg) {
   el.appendChild(p);
 }
 
+// ── 復元 タブ ────────────────────────────────────────────────────────────────
+const maskedArea  = document.getElementById('masked-area');
+const maskedInput = document.getElementById('masked-input');
+const maskedName  = document.getElementById('masked-name');
+const tsvArea     = document.getElementById('tsv-area');
+const tsvInput    = document.getElementById('tsv-input');
+const tsvName     = document.getElementById('tsv-name');
+const unmaskBtn   = document.getElementById('unmask-btn');
+const unmaskStatus = document.getElementById('unmask-status');
+const unmaskResultCard = document.getElementById('unmask-results-card');
+const unmaskResult     = document.getElementById('unmask-result');
+
+function setupUploadArea(area, input, nameEl) {
+  area.addEventListener('click', () => input.click());
+  area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('over'); });
+  area.addEventListener('dragleave', () => area.classList.remove('over'));
+  area.addEventListener('drop', e => {
+    e.preventDefault(); area.classList.remove('over');
+    const file = e.dataTransfer.files[0];
+    if (file) assignFile(input, nameEl, area, file);
+  });
+  input.addEventListener('change', () => {
+    if (input.files[0]) assignFile(input, nameEl, area, input.files[0]);
+  });
+}
+
+function assignFile(input, nameEl, area, file) {
+  // Replace the FileList (read the file via DataTransfer trick if needed)
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  input.files = dt.files;
+  nameEl.textContent = file.name;
+  area.classList.add('has-file');
+  updateUnmaskBtn();
+}
+
+function updateUnmaskBtn() {
+  unmaskBtn.disabled = !(maskedInput.files[0] && tsvInput.files[0]);
+}
+
+setupUploadArea(maskedArea, maskedInput, maskedName);
+setupUploadArea(tsvArea,    tsvInput,    tsvName);
+
+unmaskBtn.addEventListener('click', async () => {
+  const fd = new FormData();
+  fd.append('file', maskedInput.files[0]);
+  fd.append('tsv',  tsvInput.files[0]);
+
+  unmaskBtn.disabled = true;
+  unmaskStatus.innerHTML = '<span class="spinner"></span> 復元中...';
+
+  try {
+    const res  = await fetch('/unmask', { method: 'POST', body: fd });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+
+    unmaskStatus.textContent = '完了';
+    unmaskResultCard.style.display = '';
+    unmaskResult.innerHTML = '';
+
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.innerHTML = `
+      <div class="item-header">
+        <span class="item-icon">✅</span>
+        <span class="item-name">${esc(json.result_name)}</span>
+        <span class="item-status">復元完了</span>
+      </div>`;
+    const row = document.createElement('div');
+    row.className = 'btn-row';
+    row.appendChild(dlBtn(json.result, json.result_name, '⬇ 復元済みファイル', 'btn-dl'));
+    el.appendChild(row);
+    unmaskResult.appendChild(el);
+  } catch (err) {
+    unmaskStatus.textContent = 'エラー: ' + err.message;
+  } finally {
+    unmaskBtn.disabled = false;
+  }
+});
+
+// ── 共通ユーティリティ ────────────────────────────────────────────────────────
 function dlBtn(b64, filename, label, cls) {
   const btn = document.createElement('button');
   btn.className = `btn ${cls}`;

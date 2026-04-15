@@ -6,9 +6,12 @@ Flask + pymasking によるポータブル PII マスキングアプリ
          + クリップボード画像 (OCR)
 """
 import base64
+import io
+import re
 import sys
 import tempfile
 import webbrowser
+import zipfile
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
@@ -48,14 +51,17 @@ _EXT_KIND = {
     ".png":  "img",
 }
 
+# 復元対応拡張子（バイナリ ZIP 系 + テキスト系）
+_RESTORE_EXTS = {".txt", ".html", ".htm", ".svg", ".md",
+                 ".docx", ".pptx", ".xlsx"}
 
-# ── ファイル処理 ──────────────────────────────────────────────────────────────
+_TOKEN_PAT = re.compile(r'【[^【】]+】')
+
+
+# ── マスキング処理 ────────────────────────────────────────────────────────────
 
 def _process(src: Path, masker: Masker) -> tuple[bytes, str]:
-    """
-    src ファイルをマスキングして (result_bytes, result_filename) を返す。
-    TSV は masker.save_mapping() で別途取得する。
-    """
+    """ファイルをマスキングして (result_bytes, result_filename) を返す"""
     ext  = src.suffix.lower()
     stem = src.stem
     kind = _EXT_KIND.get(ext)
@@ -119,6 +125,59 @@ def _export_tsv(masker: Masker) -> bytes:
     return data
 
 
+# ── 復元処理 ─────────────────────────────────────────────────────────────────
+
+def _build_restore_map(tsv_bytes: bytes) -> dict[str, str]:
+    """TSV バイト列からトークン→元テキストのマップを構築"""
+    restore_map: dict[str, str] = {}
+    for line in tsv_bytes.decode("utf-8").splitlines():
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) == 4:
+            cat, orig_esc, _, label = parts
+            orig = (orig_esc
+                    .replace("\\t", "\t").replace("\\n", "\n")
+                    .replace("\\r", "\r").replace("\\\\", "\\"))
+            restore_map[f"【{cat}{label}】"] = orig
+    return restore_map
+
+
+def _restore_text(text: str, restore_map: dict) -> str:
+    return _TOKEN_PAT.sub(lambda m: restore_map.get(m.group(0), m.group(0)), text)
+
+
+def _restore_zip(data: bytes, restore_map: dict) -> bytes:
+    """docx / pptx / xlsx (ZIP+XML) 内の全トークンを復元"""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(data), "r") as zin, \
+         zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            content = zin.read(item.filename)
+            name_lower = item.filename.lower()
+            if name_lower.endswith(".xml") or name_lower.endswith(".rels"):
+                text = content.decode("utf-8", errors="replace")
+                text = _restore_text(text, restore_map)
+                content = text.encode("utf-8")
+            zout.writestr(item, content)
+    return buf.getvalue()
+
+
+def _restore_file(masked_data: bytes, ext: str,
+                  restore_map: dict, stem: str) -> tuple[bytes, str]:
+    """マスク済みファイルを復元して (result_bytes, filename) を返す"""
+    ext = ext.lower()
+
+    if ext in (".docx", ".pptx", ".xlsx"):
+        result = _restore_zip(masked_data, restore_map)
+        return result, f"{stem}_restored{ext}"
+
+    # テキスト系（txt / html / htm / svg / md）
+    text = masked_data.decode("utf-8", errors="replace")
+    restored = _restore_text(text, restore_map)
+    return restored.encode("utf-8"), f"{stem}_restored{ext}"
+
+
 # ── ルーティング ──────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -128,6 +187,7 @@ def index():
         ner_mode=get_detection_mode(),
         ocr_available=OCR_AVAILABLE,
         supported_exts=sorted(_EXT_KIND.keys()),
+        restore_exts=sorted(_RESTORE_EXTS),
     )
 
 
@@ -142,7 +202,6 @@ def mask_api():
     if ext not in _EXT_KIND:
         return jsonify({"error": f"非対応形式: {ext}"}), 400
 
-    # 一時ファイルに保存
     with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
         tmp_path = Path(tmp.name)
         f.save(tmp_path)
@@ -195,6 +254,34 @@ def mask_clipboard():
         "result_name": "clipboard_masked.txt",
         "tsv":         base64.b64encode(tsv_bytes).decode(),
         "tsv_name":    "clipboard_mapping.tsv",
+    })
+
+
+@app.route("/unmask", methods=["POST"])
+def unmask_api():
+    """マスク済みファイル + マッピング TSV → 元ファイル復元"""
+    if "file" not in request.files or "tsv" not in request.files:
+        return jsonify({"error": "マスク済みファイルとマッピングTSVの両方が必要です"}), 400
+
+    f        = request.files["file"]
+    tsv_file = request.files["tsv"]
+    ext      = Path(f.filename).suffix.lower()
+
+    if ext not in _RESTORE_EXTS:
+        return jsonify({"error": f"復元非対応形式: {ext}"}), 400
+
+    try:
+        masked_data  = f.read()
+        tsv_bytes    = tsv_file.read()
+        restore_map  = _build_restore_map(tsv_bytes)
+        stem         = Path(f.filename).stem.removesuffix("_masked")
+        result_bytes, result_name = _restore_file(masked_data, ext, restore_map, stem)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "result":      base64.b64encode(result_bytes).decode(),
+        "result_name": result_name,
     })
 
 
